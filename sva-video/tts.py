@@ -15,7 +15,7 @@ import soundfile as sf
 
 ROOT = os.environ.get('SVA_TTS_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tts-models'))
 EN_SPEAKER = int(os.environ.get('SVA_EN_SPEAKER', '6'))  # kokoro am_michael
-SPEED = {'en': 1.12, 'gr': 1.08}
+SPEED = {'en': 1.12, 'gr': 1.0}  # faster Greek gets mumbled
 
 
 def make(lang):
