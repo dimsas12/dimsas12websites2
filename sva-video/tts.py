@@ -2,6 +2,8 @@
 
     python3 tts.py <out.wav> "text to speak" [speed]
 
+Prints JSON: duration, sentence start times and estimated per-word timings.
+
 Text is spoken sentence by sentence with natural pauses in between;
 "..." adds a dramatic beat. The voice is a blend of Kokoro speakers, set with
 SVA_VOICE (default "am_puck:0.6,am_fenrir:0.4").
@@ -9,6 +11,7 @@ SVA_VOICE (default "am_puck:0.6,am_fenrir:0.4").
 Model: kokoro-multi-lang-v1_0 from github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models,
 expected in $SVA_TTS_DIR (default: ./tts-models).
 """
+import json
 import os
 import re
 import sys
@@ -20,8 +23,8 @@ import soundfile as sf
 ROOT = os.environ.get('SVA_TTS_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tts-models'))
 MODEL = os.path.join(ROOT, 'kokoro-multi-lang-v1_0')
 VOICE = os.environ.get('SVA_VOICE', 'am_puck:0.6,am_fenrir:0.4')
-SPEED = 1.0
-PAUSE = {'.': 0.32, '!': 0.32, '?': 0.40, '…': 0.55, ';': 0.22}
+SPEED = float(os.environ.get('SVA_SPEED', '1.1'))
+PAUSE = {'.': 0.16, '!': 0.16, '?': 0.22, '…': 0.38, ';': 0.12}
 N_SPEAKERS, FRAMES, DIM = 54, 510, 256
 
 
@@ -76,16 +79,27 @@ def main():
     text = text.replace('...', '…')
     # split after sentence punctuation, keeping it for intonation
     parts = [p.strip() for p in re.split(r'(?<=[.!?…;])\s+', text) if p.strip()]
-    chunks, sr = [], 24000
+    chunks, sr, pos, cues, words = [], 24000, 0, [], []
     for p in parts:
         spoken = p.rstrip('…').rstrip() + ('.' if p.endswith('…') else '')
         audio = tts.generate(spoken, sid=N_SPEAKERS - 1, speed=speed)
         sr = audio.sample_rate
-        chunks.append(trim(np.array(audio.samples, dtype=np.float32), sr))
-        chunks.append(np.zeros(int(PAUSE.get(p[-1], 0.25) * sr), dtype=np.float32))
+        x = trim(np.array(audio.samples, dtype=np.float32), sr)
+        start, d = pos / sr, len(x) / sr
+        cues.append(round(start, 3))
+        # word timings are estimated by spreading the sentence over its letters
+        ws = p.split()
+        weights = [len(w) + 2 for w in ws]
+        acc = 0
+        for w, k in zip(ws, weights):
+            words.append({'w': w, 't': round(start + d * acc / sum(weights), 3)})
+            acc += k
+        gap = np.zeros(int(PAUSE.get(p[-1], 0.1) * sr), dtype=np.float32)
+        chunks += [x, gap]
+        pos += len(x) + len(gap)
     samples = np.concatenate(chunks[:-1]) if chunks else np.zeros(1, dtype=np.float32)
     sf.write(out, samples, sr)
-    print(f'{len(samples) / sr:.2f}')
+    print(json.dumps({'dur': round(len(samples) / sr, 3), 'cues': cues, 'words': words}))
 
 
 if __name__ == '__main__':
