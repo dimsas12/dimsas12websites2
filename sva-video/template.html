@@ -219,6 +219,72 @@ function sHook(t, a, b, s) {
   }
 }
 
+// --- teaser: "match file" cold open -> question gets struck out -> new angle
+function hudFrame(t, a, alpha) {
+  // corner brackets, scan line and file tag: reads like an analyst's screen
+  ctx.save(); ctx.globalAlpha *= alpha;
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 5;
+  const m = 70, x0 = m, y0 = 300, x1 = W - m, y1 = 1500, L = 70;
+  [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(([x, y, dx, dy]) => {
+    ctx.beginPath(); ctx.moveTo(x, y + dy * L); ctx.lineTo(x, y); ctx.lineTo(x + dx * L, y); ctx.stroke();
+  });
+  const sy = y0 + ((250 + (t - a) * 520) % (y1 - y0));
+  const g = ctx.createLinearGradient(0, sy - 60, 0, sy);
+  g.addColorStop(0, 'rgba(10,132,255,0)'); g.addColorStop(1, 'rgba(10,132,255,.35)');
+  ctx.fillStyle = g; ctx.fillRect(x0, sy - 60, x1 - x0, 60);
+  ctx.fillStyle = C.blue; ctx.fillRect(x0, sy, x1 - x0, 3);
+  if (Math.floor((t - a) * 2.5) % 2 === 0) { ctx.beginPath(); ctx.arc(x1 - 150, y1 - 50, 9, 0, Math.PI * 2); ctx.fillStyle = C.red; ctx.fill(); }
+  text('LIVE', x1 - 130, y1 - 49, 24, { align: 'left', weight: 800, color: C.white, spacing: 3 });
+  ctx.restore();
+}
+function sTeaser(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.4), c2 = cue(s, a, 2, 2.2);
+  hudFrame(t, a, 1);
+  // file tag types itself out
+  const tag = tx(s.kicker);
+  text(tag.slice(0, Math.max(0, Math.floor((t - a + .25) / .028))), 140, 360, 28, { align: 'left', weight: 800, color: C.blue, spacing: 4 });
+  const move = p(t, c1 + .05, c1 + .4, easeOutExpo);
+  text(`${fullName(D.home)}  vs  ${fullName(D.away)}`, W / 2, lerp(640, 470, move), 34, { weight: 800, color: C.grey, spacing: 4, alpha: 1 - move * .4 });
+  // the question: on screen from frame 0, then struck out
+  const strike = p(t, c1, c1 + .14);
+  ctx.save();
+  ctx.translate(W / 2 + Math.sin(t * 60) * 3 * (1 - strike), lerp(830, 600, move));
+  const z = lerp(1.04 - .04 * p(t, a, a + .4), .5, move); ctx.scale(z, z);
+  text(tx(s.question), 0, 0, fitSize(tx(s.question), 900, 200), { italic: true, color: strike > 0 ? '#C9CED9' : C.white });
+  if (strike > 0) {
+    ctx.save(); ctx.strokeStyle = C.red; ctx.lineWidth = 30; ctx.lineCap = 'round'; glow(C.red, 40);
+    ctx.beginPath(); ctx.moveTo(-430, 60); ctx.lineTo(lerp(-430, 430, strike), lerp(60, -60, strike)); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+  // "wrong question."
+  const wk = p(t, c1 + .08, c1 + .32, easeOutExpo);
+  if (wk > 0) {
+    ctx.save(); ctx.translate(W / 2, 830); const zz = lerp(2.6, 1, wk); ctx.scale(zz, zz); ctx.globalAlpha *= clamp(wk * 2);
+    text(tx(s.answer), 0, 0, fitSize(tx(s.answer), 940, 150), { italic: true });
+    ctx.restore();
+    shock(t, c1 + .32, W / 2, 830, 120, 700, C.red);
+  }
+  // "follow the points." + scrambling total
+  const fk = p(t, c2 - .05, c2 + .22, easeOutExpo);
+  if (fk > 0) {
+    ctx.save(); ctx.translate(W / 2, 1030); const zz = lerp(2.2, 1, fk); ctx.scale(zz, zz); ctx.globalAlpha *= clamp(fk * 2);
+    glow(C.blue, 50);
+    text(tx(s.follow), 0, 0, fitSize(tx(s.follow), 940, 120), { italic: true, color: C.blue });
+    ctx.restore();
+    const rk = p(t, c2 + .2, c2 + .45, easeBack);
+    ctx.save(); ctx.translate(W / 2, 1270); ctx.scale(rk, rk);
+    rrect(-300, -95, 600, 190, 30); ctx.fillStyle = 'rgba(10,132,255,.12)'; ctx.fill();
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 3; ctx.stroke();
+    text(tx(s.counterLabel), 0, -50, 26, { weight: 800, color: C.grey, spacing: 5 });
+    const f = Math.floor(t * 24);
+    const digits = [0, 1, 2].map(i => String(Math.floor(rnd(f * 3 + i) * 10))).join('');
+    ctx.font = `800 96px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = C.white; ctx.fillText(t > b - .5 ? '???' : digits, 0, 30);
+    ctx.restore();
+  }
+}
+
 // --- versus: diagonal split panels
 function sVersus(t, a, b, s) {
   const c1 = wordT(s, a, (tx(D.away.short || D.away) || 'x').toLowerCase().slice(0, 4), 1.1);
@@ -493,9 +559,10 @@ function sOutro(t, a, b, s) {
   if (s.disclaimer !== false) text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
 }
 
-const SCENES = { hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
+const SCENES = { teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
 // moments that get camera shake + flash + an impact sound
 const IMPACTS = {
+  teaser: (s, a) => [cue(s, a, 1, 1.4) + .32, cue(s, a, 2, 2.2) + .15],
   hook: (s, a) => [cue(s, a, 1, 1.6) + .38],
   versus: (s, a) => [a + .05, wordT(s, a, (tx(D.away.short || D.away) || 'x').toLowerCase().slice(0, 4), 1.1) + .15],
   duel: (s, a) => [wordT(s, a, s.bottom.word || 'worst', 1) + .2, cue(s, a, s.pulseCue ?? 1, 1.8) + .1],

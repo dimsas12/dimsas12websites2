@@ -72,13 +72,13 @@ function mix(video, out, dur, clips, tl, data, workDir, classic) {
       const reveal = tl.scenes[pi] + ((data.scenes[pi].cues || [])[1] ?? 1);
       fx.push(add(`${sfxDir}/riser.wav`, reveal - 1.6, 0.22, 'r0'));
     }
-    const bed = add(`${sfxDir}/bed.wav`, 0, 0.3, 'bed');
+    const bed = add(`${sfxDir}/bed.wav`, 0, 0.24, 'bed');
     filters.push(`[vo]asplit=3[vo1][vo2][vo3]`);
     // music ducks under the voice
-    filters.push(`${bed}[vo2]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=350[bedd]`);
+    filters.push(`${bed}[vo2]sidechaincompress=threshold=0.01:ratio=12:attack=10:release=400[bedd]`);
     filters.push(`${fx.join('')}amix=inputs=${fx.length}:normalize=0[fxraw]`);
     // effects also duck under the voice so they never mask a word
-    filters.push(`[fxraw][vo3]sidechaincompress=threshold=0.03:ratio=4:attack=5:release=200[fx]`);
+    filters.push(`[fxraw][vo3]sidechaincompress=threshold=0.01:ratio=10:attack=3:release=250[fx]`);
     filters.push(`[vo1][fx][bedd]amix=inputs=3:normalize=0,alimiter=limit=0.9[all]`);
     final = '[all]';
   }

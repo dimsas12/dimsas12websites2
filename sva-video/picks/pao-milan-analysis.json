@@ -14,9 +14,20 @@
   },
   "scenes": [
     {
+      "type": "teaser",
+      "dur": 3,
+      "lead": 0.1,
+      "voice": "Everyone's asking who wins tonight... Wrong question. Follow the points.",
+      "kicker": "SVA // MATCH FILE · EUROLEAGUE R8",
+      "question": "WHO WINS?",
+      "answer": "WRONG QUESTION.",
+      "follow": "FOLLOW THE POINTS.",
+      "counterLabel": "TOTAL POINTS"
+    },
+    {
       "type": "hook",
       "dur": 2.6,
-      "lead": 0.1,
+      "lead": 0.35,
       "voice": "Panathinaikos games average just one sixty-one point five... Tonight, expect a lot more.",
       "line1": "PAO GAMES AVERAGE",
       "from": "161.5",
@@ -116,8 +127,17 @@
       "tail": 0.9,
       "voice": "Follow SVA Consult. See the game differently.",
       "cta": "FOLLOW FOR DAILY ANALYSIS",
-      "lead": 0.75,
+      "lead": 1.25,
       "disclaimer": false
     }
+  ],
+  "transitions": [
+    "glitch",
+    "slash",
+    "whip",
+    "zoom",
+    "glitch",
+    "slash",
+    "whip"
   ]
 }
