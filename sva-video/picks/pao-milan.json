@@ -1,71 +1,273 @@
 {
   "sample": false,
-  "competition": { "en": "EUROLEAGUE · ROUND 8", "gr": "EUROLEAGUE · 8Η ΑΓΩΝΙΣΤΙΚΗ" },
-  "date": { "en": "TUE 27.10 · 21:15", "gr": "ΤΡΙ 27.10 · 21:15" },
-  "venue": { "en": "TELEKOM CENTER ATHENS", "gr": "TELEKOM CENTER ATHENS" },
-  "home": { "en": "PAO", "gr": "ΠΑΟ", "full": { "en": "PANATHINAIKOS", "gr": "ΠΑΝΑΘΗΝΑΪΚΟΣ" }, "record": "6-1" },
-  "away": { "en": "MILAN", "gr": "ΜΙΛΑΝΟ", "full": { "en": "ARMANI MILAN", "gr": "ΑΡΜΑΝΙ ΜΙΛΑΝΟ" }, "record": "1-6" },
+  "competition": {
+    "en": "EUROLEAGUE · ROUND 8",
+    "gr": "EUROLEAGUE · 8Η ΑΓΩΝΙΣΤΙΚΗ"
+  },
+  "date": {
+    "en": "TUE 27.10 · 21:15",
+    "gr": "ΤΡΙ 27.10 · 21:15"
+  },
+  "venue": {
+    "en": "TELEKOM CENTER ATHENS",
+    "gr": "TELEKOM CENTER ATHENS"
+  },
+  "home": {
+    "en": "PAO",
+    "gr": "ΠΑΟ",
+    "full": {
+      "en": "PANATHINAIKOS",
+      "gr": "ΠΑΝΑΘΗΝΑΪΚΟΣ"
+    },
+    "record": "6-1"
+  },
+  "away": {
+    "en": "MILAN",
+    "gr": "ΜΙΛΑΝΟ",
+    "full": {
+      "en": "ARMANI MILAN",
+      "gr": "ΑΡΜΑΝΙ ΜΙΛΑΝΟ"
+    },
+    "record": "1-6"
+  },
+  "voiceIntro": {
+    "en": "S V A Consult.",
+    "gr": "Ες Βι Έι Κονσάλτ."
+  },
+  "voiceOutro": {
+    "en": "See the game differently. Join the community, link in bio. Eighteen plus. Play responsibly.",
+    "gr": "Δες το παιχνίδι διαφορετικά. Γίνε μέλος, το λινκ είναι στο μπάιο. Άνω των δεκαοκτώ. Παίξε υπεύθυνα."
+  },
   "scenes": [
-    { "type": "matchup", "dur": 5 },
     {
-      "type": "stats", "dur": 6.4,
-      "title": { "en": "SEASON STATS", "gr": "ΣΤΑΤΙΣΤΙΚΑ ΣΕΖΟΝ" },
+      "type": "matchup",
+      "dur": 5,
+      "voice": {
+        "en": "EuroLeague, round eight. Panathinaikos, six and one, host Armani Milan, one and six.",
+        "gr": "Ευρωλίγκα, όγδοη αγωνιστική. Ο Παναθηναϊκός, με έξι νίκες και μία ήττα, υποδέχεται την Αρμάνι Μιλάνο, με μία νίκη και έξι ήττες."
+      }
+    },
+    {
+      "type": "stats",
+      "dur": 6.4,
+      "voice": {
+        "en": "Panathinaikos have the best defence, allowing seventy-three point nine. But Milan have the worst, allowing ninety-three point two, and their games average one seventy-seven.",
+        "gr": "Ο Παναθηναϊκός έχει την καλύτερη άμυνα, με εβδομήντα τρία κόμμα εννιά πόντους κατά. Η Μιλάνο όμως έχει τη χειρότερη, με ενενήντα τρία κόμμα δύο, και τα ματς της βγάζουν μέσο όρο εκατόν εβδομήντα επτά."
+      },
+      "title": {
+        "en": "SEASON STATS",
+        "gr": "ΣΤΑΤΙΣΤΙΚΑ ΣΕΖΟΝ"
+      },
       "rows": [
-        { "en": "WINS (7 GAMES)", "gr": "ΝΙΚΕΣ (7 ΑΓΩΝΕΣ)", "home": 6, "away": 1, "dec": 0 },
-        { "en": "POINTS SCORED", "gr": "ΠΟΝΤΟΙ ΥΠΕΡ", "home": 87.6, "away": 84.0, "dec": 1 },
-        { "en": "POINTS ALLOWED", "gr": "ΠΟΝΤΟΙ ΚΑΤΑ", "home": 73.9, "away": 93.2, "dec": 1, "lowerIsBetter": true },
-        { "en": "AVG TOTAL IN THEIR GAMES", "gr": "ΜΕΣΟ ΣΥΝΟΛΟ ΣΤΑ ΜΑΤΣ ΤΟΥΣ", "home": 161.5, "away": 177.2, "dec": 1 }
+        {
+          "en": "WINS (7 GAMES)",
+          "gr": "ΝΙΚΕΣ (7 ΑΓΩΝΕΣ)",
+          "home": 6,
+          "away": 1,
+          "dec": 0
+        },
+        {
+          "en": "POINTS SCORED",
+          "gr": "ΠΟΝΤΟΙ ΥΠΕΡ",
+          "home": 87.6,
+          "away": 84.0,
+          "dec": 1
+        },
+        {
+          "en": "POINTS ALLOWED",
+          "gr": "ΠΟΝΤΟΙ ΚΑΤΑ",
+          "home": 73.9,
+          "away": 93.2,
+          "dec": 1,
+          "lowerIsBetter": true
+        },
+        {
+          "en": "AVG TOTAL IN THEIR GAMES",
+          "gr": "ΜΕΣΟ ΣΥΝΟΛΟ ΣΤΑ ΜΑΤΣ ΤΟΥΣ",
+          "home": 161.5,
+          "away": 177.2,
+          "dec": 1
+        }
       ]
     },
     {
-      "type": "totals", "dur": 6.2,
-      "title": { "en": "PAO RECENT TOTALS", "gr": "ΣΥΝΟΛΑ ΠΟΝΤΩΝ ΠΑΟ" },
-      "subtitle": { "en": "TOTAL POINTS vs LINE 165.5", "gr": "ΣΥΝΟΛΟ ΠΟΝΤΩΝ vs ΓΡΑΜΜΗ 165.5" },
-      "line": 165.5, "min": 110, "max": 190,
+      "type": "totals",
+      "dur": 6.2,
+      "voice": {
+        "en": "In Panathinaikos' recent games, only two of five went over one sixty-five and a half.",
+        "gr": "Στα πρόσφατα ματς του Παναθηναϊκού, μόνο τα δύο στα πέντε πέρασαν το εκατόν εξήντα πέντε και μισό."
+      },
+      "title": {
+        "en": "PAO RECENT TOTALS",
+        "gr": "ΣΥΝΟΛΑ ΠΟΝΤΩΝ ΠΑΟ"
+      },
+      "subtitle": {
+        "en": "TOTAL POINTS vs LINE 165.5",
+        "gr": "ΣΥΝΟΛΟ ΠΟΝΤΩΝ vs ΓΡΑΜΜΗ 165.5"
+      },
+      "line": 165.5,
+      "min": 110,
+      "max": 190,
       "games": [
-        { "label": { "en": "ASVEL", "gr": "ΑΣΒΕΛ" }, "score": "102-79", "total": 181 },
-        { "label": { "en": "MACCABI", "gr": "ΜΑΚΑΜΠΙ" }, "score": "90-67", "total": 157 },
-        { "label": { "en": "FENER", "gr": "ΦΕΝΕΡ" }, "score": "92-74", "total": 166 },
-        { "label": { "en": "PARTIZAN*", "gr": "ΠΑΡΤΙΖΑΝ*" }, "score": "72-55", "total": 127 },
-        { "label": { "en": "BASKONIA", "gr": "ΜΠΑΣΚΟΝΙΑ" }, "score": "85-79", "total": 164 }
+        {
+          "label": {
+            "en": "ASVEL",
+            "gr": "ΑΣΒΕΛ"
+          },
+          "score": "102-79",
+          "total": 181
+        },
+        {
+          "label": {
+            "en": "MACCABI",
+            "gr": "ΜΑΚΑΜΠΙ"
+          },
+          "score": "90-67",
+          "total": 157
+        },
+        {
+          "label": {
+            "en": "FENER",
+            "gr": "ΦΕΝΕΡ"
+          },
+          "score": "92-74",
+          "total": 166
+        },
+        {
+          "label": {
+            "en": "PARTIZAN*",
+            "gr": "ΠΑΡΤΙΖΑΝ*"
+          },
+          "score": "72-55",
+          "total": 127
+        },
+        {
+          "label": {
+            "en": "BASKONIA",
+            "gr": "ΜΠΑΣΚΟΝΙΑ"
+          },
+          "score": "85-79",
+          "total": 164
+        }
       ],
-      "summary": { "en": "2 / 5 OVER 165.5", "gr": "2 / 5 OVER 165.5" },
-      "note": { "en": "*not confirmed by a second source", "gr": "*δεν επιβεβαιώθηκε από δεύτερη πηγή" }
+      "summary": {
+        "en": "2 / 5 OVER 165.5",
+        "gr": "2 / 5 OVER 165.5"
+      },
+      "note": {
+        "en": "*not confirmed by a second source",
+        "gr": "*δεν επιβεβαιώθηκε από δεύτερη πηγή"
+      }
     },
     {
-      "type": "totals", "dur": 5,
-      "title": { "en": "HEAD TO HEAD", "gr": "ΜΕΤΑΞΥ ΤΟΥΣ" },
-      "subtitle": { "en": "LAST 2 MEETINGS · TOTAL POINTS", "gr": "2 ΤΕΛΕΥΤΑΙΑ ΜΑΤΣ · ΣΥΝΟΛΟ ΠΟΝΤΩΝ" },
-      "line": 165.5, "min": 110, "max": 190,
+      "type": "totals",
+      "dur": 5,
+      "voice": {
+        "en": "The last two meetings: one eighty-five, and one sixty-one. Average, one seventy-three.",
+        "gr": "Στα δύο τελευταία μεταξύ τους: εκατόν ογδόντα πέντε, και εκατόν εξήντα ένα. Μέσος όρος, εκατόν εβδομήντα τρία."
+      },
+      "title": {
+        "en": "HEAD TO HEAD",
+        "gr": "ΜΕΤΑΞΥ ΤΟΥΣ"
+      },
+      "subtitle": {
+        "en": "LAST 2 MEETINGS · TOTAL POINTS",
+        "gr": "2 ΤΕΛΕΥΤΑΙΑ ΜΑΤΣ · ΣΥΝΟΛΟ ΠΟΝΤΩΝ"
+      },
+      "line": 165.5,
+      "min": 110,
+      "max": 190,
       "games": [
-        { "label": { "en": "MIL–PAO 12/25", "gr": "ΜΙΛ–ΠΑΟ 12/25" }, "score": "96-89", "total": 185 },
-        { "label": { "en": "PAO–MIL 01/26", "gr": "ΠΑΟ–ΜΙΛ 01/26" }, "score": "74-87", "total": 161 }
+        {
+          "label": {
+            "en": "MIL–PAO 12/25",
+            "gr": "ΜΙΛ–ΠΑΟ 12/25"
+          },
+          "score": "96-89",
+          "total": 185
+        },
+        {
+          "label": {
+            "en": "PAO–MIL 01/26",
+            "gr": "ΠΑΟ–ΜΙΛ 01/26"
+          },
+          "score": "74-87",
+          "total": 161
+        }
       ],
-      "summary": { "en": "AVG TOTAL 173", "gr": "ΜΕΣΟΣ ΟΡΟΣ 173" }
+      "summary": {
+        "en": "AVG TOTAL 173",
+        "gr": "ΜΕΣΟΣ ΟΡΟΣ 173"
+      }
     },
     {
-      "type": "model", "dur": 7,
-      "homePts": 90.4, "awayPts": 79.0, "line": 165.5,
-      "implied": 51.3, "prob": 56
+      "type": "model",
+      "dur": 7,
+      "voice": {
+        "en": "Our model: ninety point four, plus seventy-nine. That's one sixty-nine point four, three point nine above the line. The odds imply fifty-one point three percent. We say fifty-six.",
+        "gr": "Το μοντέλο μας: ενενήντα κόμμα τέσσερα, συν εβδομήντα εννιά. Σύνολο, εκατόν εξήντα εννιά κόμμα τέσσερα, τρία κόμμα εννιά πάνω από τη γραμμή. Η απόδοση δίνει πενήντα ένα κόμμα τρία τοις εκατό. Εμείς, πενήντα έξι."
+      },
+      "homePts": 90.4,
+      "awayPts": 79.0,
+      "line": 165.5,
+      "implied": 51.3,
+      "prob": 56
     },
     {
-      "type": "points", "dur": 6.4,
+      "type": "points",
+      "dur": 6.4,
+      "voice": {
+        "en": "Milan have the worst defence. Their games average one seventy-seven. And Sloukas is back. The risk: Panathinaikos' elite defence.",
+        "gr": "Η Μιλάνο έχει τη χειρότερη άμυνα. Τα ματς της βγάζουν εκατόν εβδομήντα επτά. Και επιστρέφει ο Σλούκας. Το ρίσκο: η άμυνα του Παναθηναϊκού."
+      },
       "items": [
-        { "en": "Milan have the worst defence in the EuroLeague (93.2 allowed)", "gr": "Η Μιλάνο έχει τη χειρότερη άμυνα της Euroleague (93.2 κατά)" },
-        { "en": "Milan's games average 177 points", "gr": "Τα ματς της Μιλάνο βγάζουν μέσο όρο 177 πόντους" },
-        { "en": "Sloukas returns: more creation for PAO", "gr": "Επιστρέφει ο Σλούκας: περισσότερη δημιουργία για τον ΠΑΟ" },
-        { "risk": true, "en": "Risk: PAO have the best defence (73.9 allowed)", "gr": "Ρίσκο: ο ΠΑΟ έχει την καλύτερη άμυνα (73.9 κατά)" }
+        {
+          "en": "Milan have the worst defence in the EuroLeague (93.2 allowed)",
+          "gr": "Η Μιλάνο έχει τη χειρότερη άμυνα της Euroleague (93.2 κατά)"
+        },
+        {
+          "en": "Milan's games average 177 points",
+          "gr": "Τα ματς της Μιλάνο βγάζουν μέσο όρο 177 πόντους"
+        },
+        {
+          "en": "Sloukas returns: more creation for PAO",
+          "gr": "Επιστρέφει ο Σλούκας: περισσότερη δημιουργία για τον ΠΑΟ"
+        },
+        {
+          "risk": true,
+          "en": "Risk: PAO have the best defence (73.9 allowed)",
+          "gr": "Ρίσκο: ο ΠΑΟ έχει την καλύτερη άμυνα (73.9 κατά)"
+        }
       ]
     },
     {
-      "type": "pick", "dur": 6.4,
+      "type": "pick",
+      "dur": 6.4,
+      "voice": {
+        "en": "The pick: over one sixty-five and a half, at one ninety-five. Expected value, plus nine point two percent. Stake, one percent.",
+        "gr": "Η επιλογή: Όβερ εκατόν εξήντα πέντε και μισό, σε απόδοση ένα και ενενήντα πέντε. Αναμενόμενη αξία, συν εννιά κόμμα δύο τοις εκατό. Ποντάρισμα, ένα τοις εκατό."
+      },
       "symbol": "OVER",
-      "label": { "en": "165.5 POINTS", "gr": "165.5 ΠΟΝΤΟΙ" },
-      "odds": 1.95, "book": "Pamestoixima",
-      "ring": 56, "ringLabel": { "en": "PROBABILITY", "gr": "ΠΙΘΑΝΟΤΗΤΑ" },
+      "label": {
+        "en": "165.5 POINTS",
+        "gr": "165.5 ΠΟΝΤΟΙ"
+      },
+      "odds": 1.95,
+      "book": "Pamestoixima",
+      "ring": 56,
+      "ringLabel": {
+        "en": "PROBABILITY",
+        "gr": "ΠΙΘΑΝΟΤΗΤΑ"
+      },
       "chips": [
-        { "en": "EV +9.2%", "gr": "EV +9.2%" },
-        { "en": "STAKE 1%", "gr": "ΠΟΝΤΑΡΙΣΜΑ 1%" }
+        {
+          "en": "EV +9.2%",
+          "gr": "EV +9.2%"
+        },
+        {
+          "en": "STAKE 1%",
+          "gr": "ΠΟΝΤΑΡΙΣΜΑ 1%"
+        }
       ]
     }
   ]

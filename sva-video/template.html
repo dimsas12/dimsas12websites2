@@ -699,9 +699,11 @@ const DEFAULT_SCENES = [
 let TL = [], OUTRO = 0;
 function buildTimeline() {
   let a = 3.2;
-  TL = (D.scenes || DEFAULT_SCENES).map(s => { const r = { s, a, b: a + s.dur }; a = r.b; return r; });
+  // s.dur is the scene's designed length; s.len (set by render.js from the
+  // voiceover) stretches it, and render() slows the animation to match.
+  TL = (D.scenes || DEFAULT_SCENES).map(s => { const r = { s, a, b: a + (s.len || s.dur) }; a = r.b; return r; });
   OUTRO = a - .2;
-  DUR = OUTRO + 3.8;
+  DUR = OUTRO + Math.max(3.8, D.outroLen || 0);
 }
 
 function render(t) {
@@ -711,7 +713,7 @@ function render(t) {
   background(t);
   header(t, p(t, 3.1, 3.6) * (1 - p(t, OUTRO - .2, OUTRO + .2)));
   sIntro(t);
-  for (const { s, a, b } of TL) if (t >= a && t <= b) SCENES[s.type](t, a, b, s);
+  for (const { s, a, b } of TL) if (t >= a && t <= b) SCENES[s.type](a + (t - a) * s.dur / (b - a), a, a + s.dur, s);
   if (t >= OUTRO) sOutro(t, OUTRO);
   const g = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .75);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
@@ -721,6 +723,7 @@ function render(t) {
 function loadImg(src) {
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
+window.timeline = () => ({ scenes: TL.map(r => r.a), outro: OUTRO, dur: DUR });
 window.setup = async (data, lang) => {
   D = data; L = lang;
   buildTimeline();
