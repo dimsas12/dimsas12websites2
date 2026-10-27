@@ -1,0 +1,169 @@
+{
+  "competition": "NBA · REGULAR SEASON",
+  "home": {
+    "en": "SAS",
+    "full": "SAN ANTONIO SPURS",
+    "short": "San Antonio",
+    "record": "1-2"
+  },
+  "away": {
+    "en": "SAC",
+    "full": "SACRAMENTO KINGS",
+    "short": "Sacramento",
+    "record": "0-3"
+  },
+  "transitions": [
+    "gravitational-lens",
+    "light-leak",
+    "swirl-vortex",
+    "chromatic-radial-split",
+    "cross-warp-morph",
+    "ripple-waves",
+    "sdf-iris"
+  ],
+  "scenes": [
+    {
+      "type": "gauge",
+      "dur": 3,
+      "lead": 0.1,
+      "voice": "Everyone expects San Antonio to win this one by nineteen... We see something very different.",
+      "line1": "SPURS EXPECTED TO WIN BY",
+      "line2": "KINGS @ SPURS · TONIGHT",
+      "from": 19,
+      "to": 15,
+      "min": 0,
+      "max": 30,
+      "fromLabel": "THE CONSENSUS",
+      "toLabel": "OUR MODEL"
+    },
+    {
+      "type": "versus",
+      "dur": 2.4,
+      "lead": 0.4,
+      "voice": "San Antonio, one and two... hosting Sacramento, oh and three."
+    },
+    {
+      "type": "margins",
+      "dur": 3,
+      "voice": "The Kings are oh and three. But two of those losses were by eleven points or fewer.",
+      "title": "KINGS LOSSES",
+      "subtitle": "MARGIN OF DEFEAT",
+      "threshold": 19,
+      "max": 30,
+      "zoneLabel": "INSIDE 19",
+      "stamp": "2 / 3 INSIDE 19",
+      "games": [
+        {
+          "label": "CLIPPERS",
+          "score": "96-121",
+          "margin": 25
+        },
+        {
+          "label": "BLAZERS",
+          "score": "120-128",
+          "margin": 8
+        },
+        {
+          "label": "GRIZZLIES",
+          "score": "112-123",
+          "margin": 11
+        }
+      ]
+    },
+    {
+      "type": "schedule",
+      "dur": 3,
+      "voice": "And the Spurs play again tomorrow night. If this gets out of hand, Wembanyama sits early.",
+      "title": "SCHEDULE SPOT",
+      "ribbon": "BACK-TO-BACK",
+      "sitWord": "sits",
+      "tiles": [
+        {
+          "day": "TONIGHT",
+          "big": "vs SAC",
+          "small": "GAME 1"
+        },
+        {
+          "day": "TOMORROW",
+          "big": "GAME 2",
+          "small": "NO REST"
+        }
+      ],
+      "barLabel": "IF IT'S A BLOWOUT",
+      "starsLabel": "STARTERS",
+      "benchLabel": "BENCH",
+      "note": "GARBAGE TIME = KINGS POINTS"
+    },
+    {
+      "type": "players",
+      "dur": 3,
+      "voice": "Zach LaVine is pouring in twenty-nine a night. Wembanyama? Shooting just thirty-six percent.",
+      "title": "THE MATCHUP",
+      "players": [
+        {
+          "name": "ZACH LAVINE",
+          "team": "SACRAMENTO",
+          "value": 29.0,
+          "max": 40,
+          "unit": "PTS / GAME",
+          "note": "Keeps scoring when the game is decided"
+        },
+        {
+          "name": "V. WEMBANYAMA",
+          "team": "SAN ANTONIO",
+          "value": 36.5,
+          "max": 100,
+          "suffix": "%",
+          "unit": "FG%",
+          "cold": true,
+          "note": "Cold start: 20.0 pts on 36.5% shooting"
+        }
+      ]
+    },
+    {
+      "type": "scoreboard",
+      "dur": 3.2,
+      "voice": "Our model projects one twenty-two to one oh seven. A fifteen point game. Not nineteen.",
+      "title": "OUR MODEL",
+      "tag": "PROJECTED FINAL",
+      "rows": [
+        {
+          "team": "SAS",
+          "score": 122
+        },
+        {
+          "team": "SAC",
+          "score": 107
+        }
+      ],
+      "consensusLabel": "CONSENSUS MARGIN",
+      "consensus": 19,
+      "modelLabel": "OUR PROJECTED MARGIN",
+      "model": 15,
+      "max": 25,
+      "diffLabel": "4 POINTS CLOSER"
+    },
+    {
+      "type": "pick",
+      "dur": 3.4,
+      "voice": "Our prediction... San Antonio by fifteen. Closer than everyone thinks.",
+      "title": "OUR PREDICTION",
+      "symbol": "15",
+      "label": "SPURS MARGIN",
+      "chips": [
+        "SAS 122",
+        "SAC 107"
+      ],
+      "chipsCue": 2
+    },
+    {
+      "type": "outro",
+      "dur": 3.2,
+      "lead": 1.25,
+      "tail": 0.9,
+      "voice": "Follow SVA Consult. See the game differently.",
+      "cta": "FOLLOW FOR DAILY ANALYSIS",
+      "disclaimer": false
+    }
+  ]
+}

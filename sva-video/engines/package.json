@@ -1,0 +1,28 @@
+{
+  "name": "engines",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@remotion/bundler": "^4.0.539",
+    "@remotion/cli": "^4.0.539",
+    "@remotion/layout-utils": "^4.0.539",
+    "@remotion/motion-blur": "^4.0.539",
+    "@remotion/noise": "^4.0.539",
+    "@remotion/paths": "^4.0.539",
+    "@remotion/renderer": "^4.0.539",
+    "@remotion/shapes": "^4.0.539",
+    "@remotion/transitions": "^4.0.539",
+    "gsap": "^3.15.0",
+    "hyperframes": "^0.8.209",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.539"
+  }
+}

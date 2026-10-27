@@ -10,6 +10,7 @@
 </head>
 <body>
 <canvas id="c" width="1080" height="1920"></canvas>
+<script src="shaders.js"></script>
 <script>
 // SVA Consult short-form pick video: cold-open hook, voice-cued motion
 // graphics, brand-slash / whip / zoom / glitch transitions, word captions.
@@ -21,7 +22,8 @@ const C = {
   white: '#F5F7FB', grey: '#8A93A8', dim: '#2A3248', red: '#FF3B4E', draw: '#5B6478'
 };
 const FONT = 'Inter, "Inter Display", sans-serif';
-const TR = 0.36;            // transition length (s)
+const TR = 0.36;            // transition length (s) for the 2D transitions
+const TR_SHADER = 0.7;      // GPU shader transitions need a little longer to read
 const CAPTION_Y = 1650;
 
 const main = document.getElementById('c').getContext('2d');
@@ -61,6 +63,16 @@ function fitSize(s, maxW, size, weight = 900, italic = true) {
   font(size, weight, italic);
   const w = ctx.measureText(s).width;
   return w > maxW ? size * maxW / w : size;
+}
+function wrap(str, maxW, size, weight = 700) {
+  font(size, weight);
+  const lines = []; let cur = '';
+  str.split(' ').forEach(w => {
+    const tt = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(tt).width > maxW && cur) { lines.push(cur); cur = w; } else cur = tt;
+  });
+  if (cur) lines.push(cur);
+  return lines;
 }
 function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
 function glow(color, blur) { ctx.shadowColor = color; ctx.shadowBlur = blur; }
@@ -283,6 +295,235 @@ function sTeaser(t, a, b, s) {
     ctx.fillStyle = C.white; ctx.fillText(t > b - .5 ? '???' : digits, 0, 30);
     ctx.restore();
   }
+}
+
+// --- gauge: speedometer of a value; needle hits the consensus, then swings to ours
+function sGauge(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.8);
+  const cx = W / 2, cy = 1020, R = 400, lo = s.min ?? 0, hi = s.max ?? 30;
+  const ang = v => Math.PI + Math.PI * clamp((v - lo) / (hi - lo));
+  text(tx(s.line1), W / 2, 380, 56, { italic: true });
+  text(tx(s.line2), W / 2, 450, 30, { weight: 700, color: C.grey, spacing: 5 });
+  // track, safe zone and the red "consensus" zone
+  ctx.save(); ctx.lineCap = 'butt';
+  ctx.lineWidth = 64; ctx.strokeStyle = 'rgba(255,255,255,.07)';
+  ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, 2 * Math.PI); ctx.stroke();
+  const zk = 1;
+  ctx.strokeStyle = 'rgba(10,132,255,.55)'; glow(C.blue, 25);
+  ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, lerp(Math.PI, ang(s.from), zk)); ctx.stroke();
+  ctx.strokeStyle = C.red; glow(C.red, 35);
+  ctx.beginPath(); ctx.arc(cx, cy, R, ang(s.from), lerp(ang(s.from), 2 * Math.PI, zk)); ctx.stroke();
+  ctx.restore();
+  for (let v = lo; v <= hi; v += 5) {
+    const an = ang(v);
+    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(an) * (R - 50), cy + Math.sin(an) * (R - 50));
+    ctx.lineTo(cx + Math.cos(an) * (R - 80), cy + Math.sin(an) * (R - 80)); ctx.stroke(); ctx.restore();
+    text(String(v), cx + Math.cos(an) * (R - 125), cy + Math.sin(an) * (R - 125), 34, { weight: 800, color: C.grey });
+  }
+  // needle: sweep to the consensus, hold, then swing back to our number on cue
+  // already pinned in the red zone on frame 0 (that's the thumbnail), trembling until our number lands
+  const v1 = s.from + Math.sin(t * 40) * .5 * (1 - p(t, a, a + .9));
+  const v = t < c1 ? v1 : lerp(s.from, s.to, p(t, c1, c1 + .6, easeElastic));
+  const ours = t >= c1 + .1;
+  if (t >= c1) {   // ghost marker where the consensus sat
+    const an = ang(s.from);
+    ctx.save(); ctx.strokeStyle = C.red; ctx.lineWidth = 8; glow(C.red, 20);
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(an) * (R - 36), cy + Math.sin(an) * (R - 36));
+    ctx.lineTo(cx + Math.cos(an) * (R + 46), cy + Math.sin(an) * (R + 46)); ctx.stroke(); ctx.restore();
+    text(String(s.from), cx + Math.cos(an) * (R + 95), cy + Math.sin(an) * (R + 95), 44, { italic: true, color: C.red });
+  }
+  const an = ang(v), col = ours ? C.blue : C.red;
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(an);
+  ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(R - 30, 0); ctx.lineTo(0, 14); ctx.closePath();
+  ctx.fillStyle = C.white; glow(col, 40); ctx.fill();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, 44, 0, Math.PI * 2); ctx.fillStyle = col; glow(col, 40); ctx.fill(); noGlow();
+  // readout
+  ctx.save(); ctx.translate(W / 2, 1230);
+  const pz = ours ? 1 + .25 * Math.max(0, 1 - (t - c1 - .5) / .3) : 1; ctx.scale(pz, pz);
+  glow(col, 50);
+  text(String(Math.round(v)), 0, 0, 230, { italic: true, color: ours ? C.blue : C.white });
+  ctx.restore();
+  pill(ours ? tx(s.toLabel) : tx(s.fromLabel), W / 2, 1400, 36, 1,
+    ours ? {} : { fill: 'rgba(255,59,78,.16)', line: C.red });
+  shock(t, c1 + .45, W / 2, 1230, 120, 700);
+}
+
+// --- margins: horizontal bars of results against a threshold
+function sMargins(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.6);
+  text(tx(s.title), W / 2, 320, 72, { italic: true, alpha: p(t, a, a + .2) });
+  text(tx(s.subtitle), W / 2, 400, 30, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + .1, a + .3) });
+  const x0 = 120, x1 = W - 90, max = s.max ?? 30, X = v => lerp(x0, x1, v / max);
+  const n = s.games.length, y0 = 560, gap = 280;
+  // zone inside the threshold
+  const zk = p(t, a + .1, a + .5, easeInOut);
+  ctx.save(); ctx.globalAlpha *= zk;
+  const g = ctx.createLinearGradient(x0, 0, X(s.threshold), 0);
+  g.addColorStop(0, 'rgba(10,132,255,.02)'); g.addColorStop(1, 'rgba(10,132,255,.16)');
+  ctx.fillStyle = g; ctx.fillRect(x0, y0 - 40, X(s.threshold) - x0, gap * n);
+  ctx.restore();
+  text(tx(s.zoneLabel), (x0 + X(s.threshold)) / 2, y0 - 70, 26, { weight: 800, color: C.blue, spacing: 5, alpha: zk });
+  s.games.forEach((gm, i) => {
+    const y = y0 + i * gap, k = p(t, a + .2 + i * .14, a + .7 + i * .14, easeOutExpo);
+    const inside = gm.margin < s.threshold;
+    const flash = !inside && t > c1 ? Math.max(0, 1 - (t - c1) / .5) : 0;
+    text(tx(gm.label), x0, y + 20, 40, { align: 'left', italic: true, alpha: clamp(k * 2) });
+    text(gm.score, x1, y + 20, 32, { align: 'right', weight: 700, color: C.grey, alpha: clamp(k * 2) });
+    ctx.save();
+    rrect(x0, y + 60, Math.max(.1, (X(gm.margin) - x0) * k), 110, [8, 55, 55, 8]);
+    if (inside) { const gg = ctx.createLinearGradient(x0, 0, X(gm.margin), 0); gg.addColorStop(0, C.blueDeep); gg.addColorStop(1, C.blueHi); ctx.fillStyle = gg; glow(C.blue, 35); }
+    else ctx.fillStyle = flash > 0 ? C.red : C.draw;
+    ctx.fill(); ctx.restore();
+    text('−' + Math.round(gm.margin * clamp(k)), x0 + (X(gm.margin) - x0) * k - 30, y + 116, 60,
+      { align: 'right', italic: true, alpha: clamp(k * 2) });
+  });
+  // threshold line
+  const lk = p(t, a + .3, a + .7, easeInOut), lx = X(s.threshold);
+  ctx.save(); ctx.strokeStyle = C.white; ctx.lineWidth = 5; ctx.setLineDash([20, 12]); glow(C.white, 14);
+  ctx.beginPath(); ctx.moveTo(lx, y0 - 40); ctx.lineTo(lx, lerp(y0 - 40, y0 - 40 + gap * n, lk)); ctx.stroke();
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha *= lk;
+  rrect(lx - 55, y0 - 40 + gap * n + 10, 110, 50, 25); ctx.fillStyle = C.white; ctx.fill();
+  text(String(s.threshold), lx, y0 - 40 + gap * n + 36, 30, { color: C.bg });
+  ctx.restore();
+  const sk = p(t, c1, c1 + .22, easeOutExpo);
+  if (sk > 0) {
+    ctx.save();
+    ctx.translate(W / 2, 1480); ctx.rotate(-.05); const z = lerp(2.6, 1, sk); ctx.scale(z, z); ctx.globalAlpha *= clamp(sk * 2);
+    font(62, 900, true); ctx.letterSpacing = '4px';
+    const w = ctx.measureText(tx(s.stamp)).width + 90;
+    rrect(-w / 2, -56, w, 112, 18); ctx.fillStyle = 'rgba(10,132,255,.2)'; ctx.fill();
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 7; glow(C.blue, 30); ctx.stroke(); noGlow();
+    text(tx(s.stamp), 0, 3, 62, { italic: true, spacing: 4 });
+    ctx.restore();
+  }
+}
+
+// --- schedule: two game tiles (back-to-back) + a minutes bar where the stars sit
+function sSchedule(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.6), sit = wordT(s, a, s.sitWord || 'sits', 2.4);
+  text(tx(s.title), W / 2, 320, 72, { italic: true, alpha: p(t, a, a + .2) });
+  s.tiles.forEach((tl, i) => {
+    const k = p(t, a + .1 + i * .18, a + .5 + i * .18, easeBack);
+    if (k <= 0) return;
+    const x = W / 2 + (i ? 230 : -230), y = 640;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k); ctx.rotate((1 - k) * (i ? .3 : -.3));
+    rrect(-200, -170, 400, 340, 36);
+    ctx.fillStyle = i ? 'rgba(255,59,78,.14)' : 'rgba(10,132,255,.16)'; ctx.fill();
+    ctx.strokeStyle = i ? C.red : C.blue; ctx.lineWidth = 4; ctx.stroke();
+    rrect(-200, -170, 400, 80, [36, 36, 0, 0]); ctx.fillStyle = i ? C.red : C.blue; ctx.fill();
+    text(tx(tl.day), 0, -128, 34, { spacing: 4 });
+    text(tx(tl.big), 0, 10, 96, { italic: true });
+    text(tx(tl.small), 0, 110, 28, { weight: 800, color: C.grey, spacing: 3 });
+    ctx.restore();
+  });
+  // B2B ribbon slams across the second tile
+  const rk = p(t, a + .7, a + 1, easeOutExpo);
+  if (rk > 0) {
+    ctx.save(); ctx.translate(W / 2 + 230, 790); ctx.rotate(-.12); const z = lerp(2.2, 1, rk); ctx.scale(z, z); ctx.globalAlpha *= clamp(rk * 2);
+    rrect(-230, -40, 460, 80, 10); ctx.fillStyle = C.red; glow(C.red, 30); ctx.fill(); noGlow();
+    text(tx(s.ribbon), 0, 3, 40, { italic: true, spacing: 3 });
+    ctx.restore();
+  }
+  // minutes bar: four quarters; the last one flips to the bench on cue
+  const qk = p(t, c1 - .1, c1 + .4, easeInOut);
+  if (qk > 0) {
+    const x0 = 100, x1 = W - 100, y = 1080, qw = (x1 - x0) / 4;
+    text(tx(s.barLabel), W / 2, y - 70, 30, { weight: 800, color: C.grey, spacing: 4, alpha: qk });
+    for (let q = 0; q < 4; q++) {
+      const k = p(t, c1 - .1 + q * .1, c1 + .3 + q * .1, easeOutExpo);
+      const bench = q === 3 && t > sit;
+      const fk = q === 3 ? p(t, sit, sit + .3) : 0;
+      ctx.save();
+      rrect(x0 + q * qw + 6, y, (qw - 12) * k, 120, 18);
+      ctx.fillStyle = bench ? `rgba(255,59,78,${.25 + .5 * (1 - fk)})` : C.blue;
+      if (!bench) glow(C.blue, 25);
+      ctx.fill(); ctx.restore();
+      text('Q' + (q + 1), x0 + q * qw + qw / 2, y + 60, 46, { italic: true, alpha: clamp(k * 2) });
+    }
+    text(tx(s.starsLabel), W / 2 - qw / 2 - 10, y + 190, 32, { weight: 800, color: C.blue, spacing: 3, alpha: qk });
+    const bk = p(t, sit, sit + .3, easeBack);
+    if (bk > 0) {
+      ctx.save(); ctx.translate(x1 - qw / 2, y + 200); ctx.scale(bk, bk);
+      pill(tx(s.benchLabel), 0, 0, 30, 1, { fill: 'rgba(255,59,78,.2)', line: C.red });
+      ctx.restore();
+      text(tx(s.note), W / 2, y + 330, 40, { italic: true, alpha: p(t, sit + .2, sit + .5) });
+    }
+  }
+}
+
+// --- players: two stat rings
+function sPlayers(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.6);
+  text(tx(s.title), W / 2, 320, 72, { italic: true, alpha: p(t, a, a + .2) });
+  s.players.forEach((pl, i) => {
+    const t0 = i ? c1 - .1 : a + .1, y = 700 + i * 560;
+    const k = p(t, t0, t0 + .35, easeOutExpo);
+    if (k <= 0) return;
+    const col = pl.cold ? C.red : C.blue;
+    ctx.save(); ctx.translate((1 - k) * (i ? W : -W), 0);
+    rrect(70, y - 230, W - 140, 460, 48);
+    ctx.fillStyle = pl.cold ? 'rgba(255,59,78,.08)' : 'rgba(10,132,255,.1)'; ctx.fill();
+    ctx.strokeStyle = pl.cold ? 'rgba(255,59,78,.5)' : 'rgba(10,132,255,.5)'; ctx.lineWidth = 3; ctx.stroke();
+    // ring
+    const rx = 290, rr = 150, fill = p(t, t0 + .2, t0 + 1.1, easeInOut);
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 30; ctx.strokeStyle = 'rgba(255,255,255,.08)';
+    ctx.beginPath(); ctx.arc(rx, y, rr, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = col; glow(col, 35);
+    ctx.beginPath(); ctx.arc(rx, y, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (pl.value / pl.max) * fill); ctx.stroke(); noGlow();
+    text((pl.value * fill).toFixed(1) + (pl.suffix || ''), rx, y - 8, pl.suffix ? 72 : 84, { italic: true });
+    text(tx(pl.unit), rx, y + 62, 24, { weight: 800, color: C.grey, spacing: 3 });
+    text(tx(pl.name), 500, y - 90, fitSize(tx(pl.name), 480, 54), { align: 'left', italic: true });
+    text(tx(pl.team), 500, y - 30, 28, { align: 'left', weight: 800, color: col, spacing: 4 });
+    const lines = wrap(tx(pl.note), 470, 34, 700);
+    lines.forEach((ln, j) => text(ln, 500, y + 40 + j * 46, 34, { align: 'left', weight: 700, color: C.white, alpha: p(t, t0 + .5, t0 + .8) }));
+    ctx.restore();
+  });
+}
+
+// --- scoreboard: LED projection with rolling digits, then margin comparison
+function sScoreboard(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.8), c2 = cue(s, a, 2, 2.6);
+  text(tx(s.title), W / 2, 320, 72, { italic: true, alpha: p(t, a, a + .2) });
+  const bk = p(t, a + .05, a + .4, easeOutExpo);
+  ctx.save(); ctx.translate(W / 2, 640); ctx.scale(lerp(.8, 1, bk), lerp(.8, 1, bk)); ctx.globalAlpha *= bk;
+  rrect(-440, -230, 880, 460, 40); ctx.fillStyle = '#03050B'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 4; ctx.stroke();
+  // LED dot grid
+  ctx.fillStyle = 'rgba(10,132,255,.06)';
+  for (let x = -420; x < 420; x += 16) for (let y = -210; y < 210; y += 16) ctx.fillRect(x, y, 4, 4);
+  s.rows.forEach((r, i) => {
+    const y = -95 + i * 190, lk = p(t, a + .3 + i * .25, a + 1.3 + i * .25, easeOutExpo);
+    text(tx(r.team), -390, y, 84, { align: 'left', italic: true, color: i ? C.white : C.blue });
+    const f = Math.floor(t * 30);
+    const shown = lk >= 1 ? String(r.score) : String(r.score).split('').map((d, j) => lk > .5 + j * .15 ? d : String(Math.floor(rnd(f * 7 + j + i * 3) * 10))).join('');
+    ctx.font = `800 150px "JetBrains Mono", monospace`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = i ? C.white : C.blue; glow(i ? C.white : C.blue, 30);
+    ctx.fillText(shown, 400, y + 6); noGlow();
+  });
+  ctx.restore();
+  text(tx(s.tag), W / 2, 920, 28, { weight: 800, color: C.grey, spacing: 6, alpha: bk });
+  // margin bars on cue 1
+  const items = [[tx(s.consensusLabel), s.consensus, false], [tx(s.modelLabel), s.model, true]];
+  items.forEach(([lab, v, hi], i) => {
+    const k0 = c1 - .1 + i * .2, k = p(t, k0, k0 + .5, easeOutExpo);
+    if (k <= 0) return;
+    const y = 1060 + i * 170, x0 = 100, max = s.max ?? 25, wv = (W - 200 - 160) * v / max * k;
+    text(lab, x0, y, 30, { align: 'left', weight: 800, color: hi ? C.blue : C.grey, spacing: 4 });
+    ctx.save(); rrect(x0, y + 30, Math.max(.1, wv), 70, 35);
+    ctx.fillStyle = hi ? C.blue : C.draw; if (hi) glow(C.blue, 35); ctx.fill(); ctx.restore();
+    text(String(Math.round(v * k)), x0 + wv + 20, y + 66, 66, { align: 'left', italic: true, color: hi ? C.blue : C.white });
+    if (!hi && t > c2) {   // strike the consensus
+      const st = p(t, c2, c2 + .15);
+      ctx.save(); ctx.strokeStyle = C.red; ctx.lineWidth = 12; ctx.lineCap = 'round'; glow(C.red, 25);
+      ctx.beginPath(); ctx.moveTo(x0 - 10, y + 75); ctx.lineTo(lerp(x0 - 10, x0 + wv + 120, st), y + 55); ctx.stroke(); ctx.restore();
+    }
+  });
+  pill(tx(s.diffLabel), W / 2, 1480, 44, p(t, c2 + .05, c2 + .35, easeBack));
 }
 
 // --- versus: diagonal split panels
@@ -559,10 +800,15 @@ function sOutro(t, a, b, s) {
   if (s.disclaimer !== false) text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
 }
 
-const SCENES = { teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
+const SCENES = { gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
 // moments that get camera shake + flash + an impact sound
 const IMPACTS = {
   teaser: (s, a) => [cue(s, a, 1, 1.4) + .32, cue(s, a, 2, 2.2) + .15],
+  gauge: (s, a) => [cue(s, a, 1, 1.8) + .5],
+  margins: (s, a) => [cue(s, a, 1, 1.6) + .22],
+  schedule: (s, a) => [wordT(s, a, s.sitWord || 'sits', 2.4) + .15],
+  players: (s, a) => [cue(s, a, 1, 1.6) + .15],
+  scoreboard: (s, a) => [cue(s, a, 2, 2.6) + .1],
   hook: (s, a) => [cue(s, a, 1, 1.6) + .38],
   versus: (s, a) => [a + .05, wordT(s, a, (tx(D.away.short || D.away) || 'x').toLowerCase().slice(0, 4), 1.1) + .15],
   duel: (s, a) => [wordT(s, a, s.bottom.word || 'worst', 1) + .2, cue(s, a, s.pulseCue ?? 1, 1.8) + .1],
@@ -581,7 +827,10 @@ function buildTimeline() {
   let a = 0;
   TL = D.scenes.map((s, i) => { const r = { s, a, b: a + (s.len || s.dur), i }; a = r.b; return r; });
   DUR = a;
-  CUTS = TL.slice(1).map((r, i) => ({ t: r.a, type: (D.transitions || TRANSITIONS)[i % (D.transitions || TRANSITIONS).length] }));
+  CUTS = TL.slice(1).map((r, i) => {
+    const type = (D.transitions || TRANSITIONS)[i % (D.transitions || TRANSITIONS).length];
+    return { t: r.a, type, d: window.HF_SHADERS && HF_SHADERS[type] ? TR_SHADER : TR };
+  });
   HITS = [];
   TL.forEach(r => (IMPACTS[r.s.type] ? IMPACTS[r.s.type](r.s, r.a) : []).forEach(t => HITS.push(t)));
   HITS.sort((x, y) => x - y);
@@ -636,8 +885,64 @@ function ghost(canvas, x, y, vx, alpha = 1) {
   main.globalAlpha = 1;
 }
 
+// ---------- GPU shader transitions ----------
+const glC = layer(), fullA = layer(), fullB = layer();
+let gl = null, quad = null;
+const progs = {}, texs = [];
+const VERT = 'attribute vec2 a_pos; varying vec2 v_uv; void main(){v_uv=a_pos*0.5+0.5; v_uv.y=1.0-v_uv.y; gl_Position=vec4(a_pos,0,1);}';
+function glSetup() {
+  gl = glC.getContext('webgl', { preserveDrawingBuffer: true });
+  if (!gl) return;
+  gl.viewport(0, 0, W, H);
+  quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  for (let i = 0; i < 2; i++) {
+    const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE));
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
+    texs.push(tex);
+  }
+}
+function glProgram(name) {
+  if (progs[name]) return progs[name];
+  const sh = (src, type) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o);
+    if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(name + ': ' + gl.getShaderInfoLog(o)); return o; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(VERT, gl.VERTEX_SHADER)); gl.attachShader(pr, sh(HF_SHADERS[name], gl.FRAGMENT_SHADER));
+  gl.linkProgram(pr);
+  return (progs[name] = pr);
+}
+// a scene flattened over the background, as a shader texture needs a full frame
+function fullFrame(canvas, r, t, layerCanvas) {
+  const c = canvas.getContext('2d');
+  ctx = c; c.setTransform(1, 0, 0, 1, 0, 0);
+  background(t);
+  drawScene(r, t, layerCanvas);
+  c.drawImage(layerCanvas, 0, 0);
+  ctx = main;
+}
+function shaderCut(name, out, inn, t, progress) {
+  fullFrame(fullA, out, t, bufA);
+  fullFrame(fullB, inn, t, bufB);
+  const pr = glProgram(name);
+  gl.useProgram(pr);
+  [fullA, fullB].forEach((c, i) => {
+    gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, texs[i]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  });
+  gl.uniform1i(gl.getUniformLocation(pr, 'u_from'), 0);
+  gl.uniform1i(gl.getUniformLocation(pr, 'u_to'), 1);
+  gl.uniform1f(gl.getUniformLocation(pr, 'u_progress'), progress);
+  gl.uniform2f(gl.getUniformLocation(pr, 'u_resolution'), W, H);
+  const pos = gl.getAttribLocation(pr, 'a_pos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  main.drawImage(glC, 0, 0);
+}
+
 function compose(t) {
-  const cut = CUTS.find(c => Math.abs(t - c.t) < TR / 2);
+  const cut = CUTS.find(c => Math.abs(t - c.t) < c.d / 2);
   if (!cut) {
     const r = sceneAt(t);
     drawScene(r, t, bufA);
@@ -650,8 +955,9 @@ function compose(t) {
     if (amt > 0) { main.fillStyle = `rgba(255,255,255,${.16 * amt})`; main.fillRect(0, 0, W, H); }
     return;
   }
-  const k = (t - (cut.t - TR / 2)) / TR, e = easeInOut(k);
+  const k = (t - (cut.t - cut.d / 2)) / cut.d, e = easeInOut(k);
   const out = TL.find(r => r.b === cut.t), inn = TL.find(r => r.a === cut.t);
+  if (gl && HF_SHADERS[cut.type]) return shaderCut(cut.type, out, inn, t, e);
   drawScene(out, t, bufA);
   drawScene(inn, t, bufB);
   if (cut.type === 'whip') {
@@ -768,6 +1074,7 @@ window.timeline = () => ({ scenes: TL.map(r => r.a), dur: DUR, cuts: CUTS.map(c 
   pick: (TL.find(r => r.s.type === 'pick') || {}).a });
 window.setup = async data => {
   D = data;
+  if (!gl) glSetup();
   buildTimeline();
   img.white = await loadImg('assets/mark_white.png');
   img.blue = await loadImg('assets/mark_blue.png');

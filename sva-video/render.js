@@ -105,7 +105,8 @@ function mix(video, out, dur, clips, tl, data, workDir, classic) {
   const hasVoice = (data.scenes || []).some(s => s.voice);
   const clips = hasVoice && !(stills && classic) ? voiceover(data, workDir, classic) : [];
 
-  const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+  // swiftshader gives headless Chromium WebGL for the GPU shader transitions
+  const browser = await chromium.launch({ args: ['--allow-file-access-from-files', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 } });
   await page.goto('file://' + path.join(__dirname, (data.template || 'template') + '.html'));
   const dur = await page.evaluate(d => window.setup(d, 'en'), data);
