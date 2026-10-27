@@ -1,0 +1,296 @@
+<title>Δελτία Ημέρας</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column of betting slips; summary always visible, analyses collapse per language */
+:root {
+  --bg: #f3f5f4; --surface: #ffffff; --fg: #17211e; --muted: #5d6b66;
+  --line: #d9e0dd; --accent: #1b6b55; --accent-soft: #e2f0eb;
+  --win: #1f7a4a; --risk: #a8521c;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1513; --surface: #17201d; --fg: #e4ebe8; --muted: #93a39d;
+  --line: #2a3632; --accent: #5cc7a3; --accent-soft: #1c2e28;
+  --win: #6fd39b; --risk: #e59a66; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1513; --surface: #17201d; --fg: #e4ebe8; --muted: #93a39d;
+  --line: #2a3632; --accent: #5cc7a3; --accent-soft: #1c2e28;
+  --win: #6fd39b; --risk: #e59a66; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+header h1 { font: 700 2.4rem/1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+header p { margin: 6px 0 0; color: var(--muted); }
+.total { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: .9rem; color: var(--muted); }
+.total b { color: var(--fg); font-family: var(--mono); font-weight: 500; }
+.slip { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.slip-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.comp { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.slip h2 { font: 700 1.55rem/1.1 var(--display); margin: 2px 0 0; text-wrap: balance; }
+.pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.pick div { background: var(--accent-soft); border-radius: 6px; padding: 8px 10px; min-width: 0; }
+.pick span { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.pick strong { font: 500 1rem var(--mono); font-variant-numeric: tabular-nums; }
+.why { margin: 0; }
+details { border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; color: var(--accent); list-style-position: outside; }
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+details[open] summary { margin-bottom: 8px; }
+details h3 { font: 600 1.05rem var(--display); letter-spacing: .02em; text-transform: uppercase; margin: 18px 0 6px; color: var(--muted); }
+details p, details li { max-width: 65ch; }
+details ul { padding-left: 1.2em; margin: 0; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-weight: 600; color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+.y { color: var(--win); } .n { color: var(--risk); }
+.ev { font-family: var(--mono); }
+.note { font-size: .85rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { details[open] > :not(summary) { animation: fade .2s ease-out; } }
+@keyframes fade { from { opacity: .4 } to { opacity: 1 } }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Δελτία Τρίτης 27/10</h1>
+  <p>Ματς με ελληνική ημερομηνία 27/10. Αποδόσεις όπως ήταν την ώρα της πρότασης.</p>
+</header>
+<div class="total"><span>Δελτία <b>3</b></span><span>Σύνολο ρίσκου <b>2,5%</b> bankroll</span><span>Ενημέρωση <b>27/10/2026</b></span></div>
+
+<!-- SLIP 1 -->
+<section class="slip">
+  <div class="slip-top"><span class="comp">Euroleague · 8η αγωνιστική</span><span class="comp">21:15</span></div>
+  <h2>Παναθηναϊκός – Αρμάνι Μιλάνο</h2>
+  <div class="pick">
+    <div><span>Επιλογή</span><strong>Over 165.5</strong></div>
+    <div><span>Απόδοση</span><strong>1.95 Pamestoixima</strong></div>
+    <div><span>Ποντάρισμα</span><strong>1%</strong></div>
+    <div><span>Πιθανότητα / EV</span><strong>56% / +9.2%</strong></div>
+  </div>
+  <p class="why">Αναμενόμενο σύνολο ~169.5. Η Μιλάνο δέχεται 93.2 πόντους ανά ματς, τη χειρότερη άμυνα της διοργάνωσης. Το βασικό αντεπιχείρημα είναι η άμυνα του ΠΑΟ (73.9 κατά).</p>
+
+  <details>
+  <summary>🇬🇷 Πλήρης ανάλυση (ελληνικά)</summary>
+  <h3>1. Η γραμμή και η αγορά</h3>
+  <div class="tbl"><table><tr><th>Εταιρεία</th><th>Γραμμή</th><th>Over</th><th>Under</th></tr>
+  <tr><td>Pamestoixima</td><td>165.5</td><td><b>1.95</b></td><td>1.87</td></tr>
+  <tr><td>Novibet</td><td>165.5</td><td>1.90</td><td>1.90</td></tr>
+  <tr><td>Novibet (εναλλακτική)</td><td>164.5</td><td>1.94</td><td>1.86</td></tr>
+  <tr><td>Superbet / Vistabet / NetBet</td><td>—</td><td colspan="2">δεν βρέθηκε</td></tr></table></div>
+  <p>Το 1.95 αντιστοιχεί σε 51.3%. Το χάντικαπ είναι ΠΑΟ −14.5. Μαζί με το 165.5, η αγορά «βλέπει» σκορ περίπου 90–75.</p>
+  <h3>2. Στατιστικά ομάδων (7 αγωνιστικές)</h3>
+  <div class="tbl"><table><tr><th></th><th>Παναθηναϊκός</th><th>Μιλάνο</th></tr>
+  <tr><td>Ρεκόρ</td><td>6-1 (1ος)</td><td>1-6</td></tr>
+  <tr><td>Πόντοι υπέρ</td><td>87.6</td><td>84.0</td></tr>
+  <tr><td>Πόντοι κατά</td><td>73.9 (καλύτερη)</td><td>93.2 (χειρότερη)</td></tr>
+  <tr><td>Διαφορά πόντων</td><td>+96</td><td>−63</td></tr>
+  <tr><td>Μέσο σύνολο στα ματς τους</td><td>161.5</td><td>177.2</td></tr></table></div>
+  <div class="tbl"><table><tr><th>ΠΑΟ vs</th><th>Σκορ</th><th>Σύνολο</th><th>Over 165.5</th></tr>
+  <tr><td>ΑΣΒΕΛ (έδρα)</td><td>102-79</td><td>181</td><td class="y">ναι</td></tr>
+  <tr><td>Μακάμπι</td><td>90-67</td><td>157</td><td class="n">όχι</td></tr>
+  <tr><td>Φενέρμπαχτσε</td><td>92-74</td><td>166</td><td class="y">ναι</td></tr>
+  <tr><td>Παρτιζάν (εκτός)*</td><td>72-55</td><td>127</td><td class="n">όχι</td></tr>
+  <tr><td>Μπασκόνια (έδρα, 22/10)</td><td>85-79</td><td>164</td><td class="n">όχι</td></tr></table></div>
+  <p class="note">*Δεν επιβεβαιώθηκε από δεύτερη πηγή. Τελευταίο ματς της Μιλάνο: ήττα 81-89 από την Μπαρτσελόνα (σύνολο 170). Ο ΠΑΟ έχει 36.3 ριμπάουντ, 19.3 ασίστ και 11.2 λάθη ανά ματς. Ο Λεσόρ έχει 12.6 πόντους και 6.4 ριμπάουντ.</p>
+  <h3>3. Head-to-Head</h3>
+  <div class="tbl"><table><tr><th>Ημερομηνία</th><th>Αγώνας</th><th>Σκορ</th><th>Σύνολο</th></tr>
+  <tr><td>07/01/2026</td><td>ΠΑΟ – Μιλάνο</td><td>74-87</td><td>161</td></tr>
+  <tr><td>12/12/2025</td><td>Μιλάνο – ΠΑΟ</td><td>96-89</td><td>185</td></tr></table></div>
+  <p>Η Μιλάνο έχει 3 σερί νίκες στα μεταξύ τους. Μέσο σύνολο στα 2 τελευταία: 173.</p>
+  <h3>4. Απουσίες και ρόστερ</h3>
+  <ul><li>ΠΑΟ: ο Σλούκας επιστρέφει (ντεμπούτο στη φετινή Euroleague) και ο Μαντζούκας προπονήθηκε κανονικά. Ο Ρογκαβόπουλος είναι εκτός.</li>
+  <li>Μιλάνο: δεν βρέθηκε επίσημο injury report. Έχει 6 ήττες σε 7 ματς.</li></ul>
+  <h3>5. Το μοντέλο</h3>
+  <ul><li>ΠΑΟ = (87.6 + 93.2) / 2 = 90.4</li><li>Μιλάνο = (84.0 + 73.9) / 2 = 79.0</li>
+  <li>Αναμενόμενο σύνολο 169.4, δηλαδή +3.9 πάνω από τη γραμμή. Με τυπική απόκλιση ~15, η πιθανότητα βγαίνει ~60%.</li>
+  <li>Τη ρίχνω στο ~56%, γιατί τα ματς του ΠΑΟ έχουν μέσο όρο 161.5 και μόνο 2 στα 5 γνωστά πέρασαν το 165.5.</li></ul>
+  <h3>6. Υπέρ</h3>
+  <ul><li>Η χειρότερη άμυνα της διοργάνωσης απέναντι σε επίθεση 87.6.</li><li>Τα ματς της Μιλάνο βγάζουν 177 κατά μέσο όρο.</li><li>Τα H2H βγάζουν 173 κατά μέσο όρο.</li><li>Με τον Σλούκα πίσω ο ΠΑΟ έχει περισσότερη δημιουργία. Σε ματς με μεγάλη διαφορά το τέταρτο δεκάλεπτο ανοίγει.</li></ul>
+  <h3>7. Κατά και ρίσκα</h3>
+  <ul><li>Η άμυνα του ΠΑΟ είναι η καλύτερη της Euroleague (73.9 κατά).</li><li>Τα ματς του ΠΑΟ βγάζουν 161.5 κατά μέσο όρο, και τρία σύνολα (157, 164, 166) ήταν κοντά στη γραμμή.</li><li>Μια ιταλική πηγή δίνει το Under 169.5 με 64%.</li><li>Με τον Σλούκα ο ρυθμός μπορεί να γίνει πιο ελεγχόμενος.</li></ul>
+  <h3>8. Συμπέρασμα</h3>
+  <p>Πιθανότητα ~56%, ενώ η απόδοση αντιστοιχεί σε 51.3%. <span class="ev">EV = 0.56 × 1.95 − 1 = +9.2%</span>. Ποντάρισμα 1%.</p>
+  </details>
+
+  <details>
+  <summary>🇬🇧 Full analysis (English)</summary>
+  <h3>1. The line and the market</h3>
+  <div class="tbl"><table><tr><th>Bookmaker</th><th>Line</th><th>Over</th><th>Under</th></tr>
+  <tr><td>Pamestoixima</td><td>165.5</td><td><b>1.95</b></td><td>1.87</td></tr>
+  <tr><td>Novibet</td><td>165.5</td><td>1.90</td><td>1.90</td></tr>
+  <tr><td>Novibet (alt)</td><td>164.5</td><td>1.94</td><td>1.86</td></tr>
+  <tr><td>Superbet / Vistabet / NetBet</td><td>—</td><td colspan="2">not found</td></tr></table></div>
+  <p>1.95 implies 51.3%. The spread is PAO −14.5. Together with 165.5, the market expects roughly 90–75.</p>
+  <h3>2. Team stats (7 rounds)</h3>
+  <div class="tbl"><table><tr><th></th><th>Panathinaikos</th><th>Milan</th></tr>
+  <tr><td>Record</td><td>6-1 (1st)</td><td>1-6</td></tr>
+  <tr><td>Points scored</td><td>87.6</td><td>84.0</td></tr>
+  <tr><td>Points allowed</td><td>73.9 (best)</td><td>93.2 (worst)</td></tr>
+  <tr><td>Point differential</td><td>+96</td><td>−63</td></tr>
+  <tr><td>Average game total</td><td>161.5</td><td>177.2</td></tr></table></div>
+  <div class="tbl"><table><tr><th>PAO vs</th><th>Score</th><th>Total</th><th>Over 165.5</th></tr>
+  <tr><td>ASVEL (home)</td><td>102-79</td><td>181</td><td class="y">yes</td></tr>
+  <tr><td>Maccabi</td><td>90-67</td><td>157</td><td class="n">no</td></tr>
+  <tr><td>Fenerbahçe</td><td>92-74</td><td>166</td><td class="y">yes</td></tr>
+  <tr><td>Partizan (away)*</td><td>72-55</td><td>127</td><td class="n">no</td></tr>
+  <tr><td>Baskonia (home, 22/10)</td><td>85-79</td><td>164</td><td class="n">no</td></tr></table></div>
+  <p class="note">*Not confirmed by a second source. Milan's last game: lost 81-89 to Barcelona (total 170). PAO average 36.3 rebounds, 19.3 assists and 11.2 turnovers. Lessort averages 12.6 points and 6.4 rebounds.</p>
+  <h3>3. Head-to-head</h3>
+  <div class="tbl"><table><tr><th>Date</th><th>Game</th><th>Score</th><th>Total</th></tr>
+  <tr><td>07/01/2026</td><td>PAO – Milan</td><td>74-87</td><td>161</td></tr>
+  <tr><td>12/12/2025</td><td>Milan – PAO</td><td>96-89</td><td>185</td></tr></table></div>
+  <p>Milan have won the last 3 meetings. Average total of the last 2: 173.</p>
+  <h3>4. Absences and roster</h3>
+  <ul><li>PAO: Sloukas returns (EuroLeague season debut) and Mantzoukas is back in full practice. Rogkavopoulos is out.</li>
+  <li>Milan: no official injury report found. They have lost 6 of 7.</li></ul>
+  <h3>5. The model</h3>
+  <ul><li>PAO = (87.6 + 93.2) / 2 = 90.4</li><li>Milan = (84.0 + 73.9) / 2 = 79.0</li>
+  <li>Projected total 169.4, i.e. +3.9 over the line. With a standard deviation of ~15, that gives ~60%.</li>
+  <li>I shade it to ~56%, because PAO's games average 161.5 and only 2 of 5 known games went over 165.5.</li></ul>
+  <h3>6. For</h3>
+  <ul><li>The worst defence in the competition faces an 87.6-point offence.</li><li>Milan's games average 177.</li><li>The head-to-heads average 173.</li><li>Sloukas adds creation. Lopsided games open up in the fourth quarter.</li></ul>
+  <h3>7. Against and risks</h3>
+  <ul><li>PAO have the best defence in the EuroLeague (73.9 allowed).</li><li>PAO's games average 161.5, and three totals (157, 164, 166) were close to the line.</li><li>One Italian source gives Under 169.5 a 64% probability.</li><li>Sloukas may slow the game into a more controlled pace.</li></ul>
+  <h3>8. Conclusion</h3>
+  <p>Probability ~56% against an implied 51.3%. <span class="ev">EV = 0.56 × 1.95 − 1 = +9.2%</span>. Stake 1%.</p>
+  </details>
+</section>
+
+<!-- SLIP 2 -->
+<section class="slip">
+  <div class="slip-top"><span class="comp">NBA · Γουίζαρντς @ Χόρνετς</span><span class="comp">01:00</span></div>
+  <h2>Τρέι Γιανγκ ασίστ</h2>
+  <div class="pick">
+    <div><span>Επιλογή</span><strong>Over 9.5 ασίστ</strong></div>
+    <div><span>Απόδοση</span><strong>~1.75 (ελάχ. 1.65)</strong></div>
+    <div><span>Ποντάρισμα</span><strong>0,75%</strong></div>
+    <div><span>Πιθανότητα / EV</span><strong>63% / +10%</strong></div>
+  </div>
+  <p class="why">Έχει 13, 12 και 9 ασίστ στα 3 ματς (μέσος όρος 11.3). Οι Χόρνετς παίζουν χωρίς τους Κόμπι Γουάιτ, Κνούπελ και Γκραντ Ουίλιαμς.</p>
+
+  <details>
+  <summary>🇬🇷 Πλήρης ανάλυση (ελληνικά)</summary>
+  <h3>1. Η γραμμή και η αγορά</h3>
+  <div class="tbl"><table><tr><th>Πηγή</th><th>Γραμμή</th><th>Over</th></tr>
+  <tr><td>bet365</td><td>9.5</td><td>1.77 (−130)</td></tr>
+  <tr><td>Άλλη εταιρεία (10+)</td><td>9.5</td><td>1.69 (−145)</td></tr>
+  <tr><td>Novig</td><td>10.5</td><td>2.13 (+113)</td></tr>
+  <tr><td>Οι 5 εταιρείες σου</td><td>—</td><td>δεν βρέθηκε</td></tr></table></div>
+  <p>Το 1.75 αντιστοιχεί σε 57%. Ελάχιστη απόδοση με value: 1.65.</p>
+  <h3>2. Στατιστικά παίκτη</h3>
+  <div class="tbl"><table><tr><th>Αγώνας</th><th>Ασίστ</th><th>Πόντοι</th><th>Λεπτά</th><th>Over 9.5</th></tr>
+  <tr><td>vs Μπακς (21/10)</td><td>13</td><td>20</td><td>—</td><td class="y">ναι</td></tr>
+  <tr><td>vs Ράπτορς (23/10)</td><td>12</td><td>22</td><td>37</td><td class="y">ναι</td></tr>
+  <tr><td>@ Μπουλς (24/10)</td><td>9</td><td>25</td><td>34</td><td class="n">όχι</td></tr></table></div>
+  <p>Μέσος όρος σεζόν: 22.3 πόντοι, 11.3 ασίστ, 2.7 τρίποντα. Hit rate γραμμής: 2/3.</p>
+  <h3>3. Αντίπαλος και ρυθμός</h3>
+  <ul><li>Σύνολο αγώνα 226.5–229.5, δηλαδή γρήγορο ματς με πολλές κατοχές.</li><li>Χάντικαπ Χόρνετς −1.5 έως −2.5. Και οι δύο ομάδες είναι 2-1.</li></ul>
+  <h3>4. Απουσίες</h3>
+  <ul><li>Χόρνετς: Κόμπι Γουάιτ, Κνούπελ, Γκραντ Ουίλιαμς. Λείπουν οι guards που θα τον πίεζαν στην μπάλα.</li><li>Γουίζαρντς: Ντιμπάντσα, Βούκσεβιτς, Γουότκινς. Η επίθεση περνά ακόμα περισσότερο από τον Γιανγκ.</li></ul>
+  <h3>5. Το μοντέλο</h3>
+  <p>Αναμενόμενες ασίστ ~10.8, από τον μέσο όρο 11.3 προσαρμοσμένο στο μικρό δείγμα. Με διακύμανση τύπου Poisson, η πιθανότητα για 10 ή περισσότερες βγαίνει ~63%.</p>
+  <h3>6. Υπέρ</h3>
+  <ul><li>Έχει τη μπάλα στα χέρια 34–37 λεπτά.</li><li>Η άμυνα στην περιφέρεια των Χόρνετς είναι αποδυναμωμένη.</li><li>Ματς με γρήγορο ρυθμό.</li></ul>
+  <h3>7. Κατά και ρίσκα</h3>
+  <ul><li>Το δείγμα είναι μόνο 3 αγώνες.</li><li>Στο τελευταίο ματς έμεινε στις 9.</li><li>Αν το ματς κριθεί νωρίς, θα παίξει λιγότερα λεπτά.</li></ul>
+  <h3>8. Συμπέρασμα</h3>
+  <p><span class="ev">EV = 0.63 × 1.75 − 1 = +10%</span>. Ποντάρισμα 0,75%.</p>
+  </details>
+
+  <details>
+  <summary>🇬🇧 Full analysis (English)</summary>
+  <h3>1. The line and the market</h3>
+  <div class="tbl"><table><tr><th>Source</th><th>Line</th><th>Over</th></tr>
+  <tr><td>bet365</td><td>9.5</td><td>1.77 (−130)</td></tr>
+  <tr><td>Other book (10+)</td><td>9.5</td><td>1.69 (−145)</td></tr>
+  <tr><td>Novig</td><td>10.5</td><td>2.13 (+113)</td></tr>
+  <tr><td>Your 5 bookmakers</td><td>—</td><td>not found</td></tr></table></div>
+  <p>1.75 implies 57%. Minimum odds that keep value: 1.65.</p>
+  <h3>2. Player stats</h3>
+  <div class="tbl"><table><tr><th>Game</th><th>Ast</th><th>Pts</th><th>Min</th><th>Over 9.5</th></tr>
+  <tr><td>vs Bucks (21/10)</td><td>13</td><td>20</td><td>—</td><td class="y">yes</td></tr>
+  <tr><td>vs Raptors (23/10)</td><td>12</td><td>22</td><td>37</td><td class="y">yes</td></tr>
+  <tr><td>@ Bulls (24/10)</td><td>9</td><td>25</td><td>34</td><td class="n">no</td></tr></table></div>
+  <p>Season averages: 22.3 points, 11.3 assists, 2.7 threes. Hit rate on the line: 2/3.</p>
+  <h3>3. Opponent and pace</h3>
+  <ul><li>Game total 226.5–229.5: a fast game with plenty of possessions.</li><li>Hornets −1.5 to −2.5. Both teams are 2-1.</li></ul>
+  <h3>4. Absences</h3>
+  <ul><li>Hornets: Coby White, Knueppel, Grant Williams. The guards who would pressure him on the ball are missing.</li><li>Wizards: Dybantsa, Vukcevic, Watkins. Even more of the offence runs through Young.</li></ul>
+  <h3>5. The model</h3>
+  <p>Expected assists ~10.8, from the 11.3 average adjusted for the small sample. With Poisson-type variance, the chance of 10 or more is ~63%.</p>
+  <h3>6. For</h3>
+  <ul><li>He has the ball for 34–37 minutes.</li><li>Charlotte's perimeter defence is depleted.</li><li>Fast-paced game.</li></ul>
+  <h3>7. Against and risks</h3>
+  <ul><li>The sample is only 3 games.</li><li>He finished on 9 in his last game.</li><li>An early blowout would cut his minutes.</li></ul>
+  <h3>8. Conclusion</h3>
+  <p><span class="ev">EV = 0.63 × 1.75 − 1 = +10%</span>. Stake 0.75%.</p>
+  </details>
+</section>
+
+<!-- SLIP 3 -->
+<section class="slip">
+  <div class="slip-top"><span class="comp">Serie A · 9η αγωνιστική</span><span class="comp">21:45</span></div>
+  <h2>Τορίνο – Κόμο</h2>
+  <div class="pick">
+    <div><span>Επιλογή</span><strong>Under 2.5 γκολ</strong></div>
+    <div><span>Απόδοση</span><strong>~2.15 (ελάχ. 2.05)</strong></div>
+    <div><span>Ποντάρισμα</span><strong>0,75%</strong></div>
+    <div><span>Πιθανότητα / EV</span><strong>52% / +12%</strong></div>
+  </div>
+  <p class="why">Η Κόμο παίζει χωρίς τους Κιν, Ντιάο και Χ. Ροδρίγκες, τους τρεις βασικούς επιθετικούς της. Έχει δεχτεί μόλις 7 γκολ σε 8 αγωνιστικές.</p>
+
+  <details>
+  <summary>🇬🇷 Πλήρης ανάλυση (ελληνικά)</summary>
+  <h3>1. Η γραμμή και η αγορά</h3>
+  <p>Under 2.5 στο ~2.10–2.18 σε ιταλικές εταιρείες, Over 2.5 στο 1.62–1.67. Από τις 5 εταιρείες σου δεν βρέθηκε τιμή. Το 2.15 αντιστοιχεί σε 46.5%. 1X2: 4.60 / 3.85–4.00 / 1.73–1.80.</p>
+  <h3>2. Στατιστικά ομάδων (8 αγωνιστικές)</h3>
+  <div class="tbl"><table><tr><th></th><th>Τορίνο</th><th>Κόμο</th></tr>
+  <tr><td>Θέση / βαθμοί</td><td>8η / 13</td><td>5η / 17</td></tr>
+  <tr><td>Γκολ υπέρ</td><td>13 (1.63)</td><td>14 (1.75)</td></tr>
+  <tr><td>Γκολ κατά</td><td>11 (1.38)</td><td>7 (0.88)</td></tr>
+  <tr><td>Μέσο σύνολο γκολ</td><td>3.0</td><td>2.6</td></tr>
+  <tr><td>Φόρμα (5 ματς)</td><td>Ν Ν Ν Ι Η</td><td>Ν Ν Ι Η Ν</td></tr>
+  <tr><td>Τελευταίο ματς</td><td>0-2 με Ρόμα</td><td>2-0 με Σασουόλο</td></tr></table></div>
+  <h3>3. Απουσίες</h3>
+  <ul><li>Κόμο: Κιν, Ντιάο, Χεσούς Ροδρίγκες, Τσάλομπα, Λιμπεράλι.</li><li>Τορίνο: ένας τραυματίας, με τους Ιλκάν και Φορτίνι αμφίβολους.</li></ul>
+  <h3>4. Το μοντέλο</h3>
+  <p>Με βάση τους μέσους όρους των δύο ομάδων, η πιθανότητα για Under 2.5 είναι ~47%. Χωρίς τους τρεις βασικούς επιθετικούς της Κόμο, ανεβαίνει στο ~52%.</p>
+  <h3>5. Υπέρ</h3>
+  <ul><li>Η άμυνα της Κόμο είναι από τις καλύτερες του πρωταθλήματος (0.88 γκολ κατά ανά ματς).</li><li>Η Κόμο χάνει το μεγαλύτερο μέρος της επιθετικής της δύναμης.</li><li>Η Τορίνο δεν σκόραρε στο τελευταίο της ματς.</li></ul>
+  <h3>6. Κατά και ρίσκα</h3>
+  <ul><li>Τα ματς της Τορίνο βγάζουν 3.0 γκολ κατά μέσο όρο.</li><li>Οι ιταλικές σελίδες προτείνουν Over.</li><li>Μένει να επιβεβαιωθεί η επίσημη ενδεκάδα.</li></ul>
+  <h3>7. Συμπέρασμα</h3>
+  <p><span class="ev">EV = 0.52 × 2.15 − 1 = +12%</span>. Ποντάρισμα 0,75%, χαμηλό γιατί δεν βρέθηκε ελληνική τιμή.</p>
+  </details>
+
+  <details>
+  <summary>🇬🇧 Full analysis (English)</summary>
+  <h3>1. The line and the market</h3>
+  <p>Under 2.5 at ~2.10–2.18 with Italian books, Over 2.5 at 1.62–1.67. No price found at your 5 bookmakers. 2.15 implies 46.5%. 1X2: 4.60 / 3.85–4.00 / 1.73–1.80.</p>
+  <h3>2. Team stats (8 rounds)</h3>
+  <div class="tbl"><table><tr><th></th><th>Torino</th><th>Como</th></tr>
+  <tr><td>Position / points</td><td>8th / 13</td><td>5th / 17</td></tr>
+  <tr><td>Goals for</td><td>13 (1.63)</td><td>14 (1.75)</td></tr>
+  <tr><td>Goals against</td><td>11 (1.38)</td><td>7 (0.88)</td></tr>
+  <tr><td>Average match goals</td><td>3.0</td><td>2.6</td></tr>
+  <tr><td>Form (last 5)</td><td>W W W D L</td><td>W W D L W</td></tr>
+  <tr><td>Last game</td><td>0-2 vs Roma</td><td>2-0 vs Sassuolo</td></tr></table></div>
+  <h3>3. Absences</h3>
+  <ul><li>Como: Kean, Diao, Jesús Rodríguez, Chalobah, Liberali.</li><li>Torino: one injury, with Ilkhan and Fortini doubtful.</li></ul>
+  <h3>4. The model</h3>
+  <p>From the two teams' averages, Under 2.5 is ~47%. Without Como's three main attackers, it rises to ~52%.</p>
+  <h3>5. For</h3>
+  <ul><li>Como's defence is one of the league's best (0.88 goals against per game).</li><li>Como lose most of their attacking threat.</li><li>Torino failed to score in their last game.</li></ul>
+  <h3>6. Against and risks</h3>
+  <ul><li>Torino's games average 3.0 goals.</li><li>Italian tipsters lean Over.</li><li>The official line-up is still to be confirmed.</li></ul>
+  <h3>7. Conclusion</h3>
+  <p><span class="ev">EV = 0.52 × 2.15 − 1 = +12%</span>. Stake 0.75%, kept low because no Greek price was found.</p>
+  </details>
+</section>
+</div>
