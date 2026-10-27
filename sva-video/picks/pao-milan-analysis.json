@@ -1,0 +1,123 @@
+{
+  "competition": "EUROLEAGUE · ROUND 8",
+  "home": {
+    "en": "PAO",
+    "full": "PANATHINAIKOS",
+    "short": "Panathinaikos",
+    "record": "6-1"
+  },
+  "away": {
+    "en": "MILAN",
+    "full": "ARMANI MILAN",
+    "short": "Milan",
+    "record": "1-6"
+  },
+  "scenes": [
+    {
+      "type": "hook",
+      "dur": 2.6,
+      "lead": 0.1,
+      "voice": "Panathinaikos games average just one sixty-one point five... Tonight, expect a lot more.",
+      "line1": "PAO GAMES AVERAGE",
+      "from": "161.5",
+      "fromLabel": "LOW SCORING?",
+      "to": "169.4",
+      "toLabel": "OUR PROJECTION"
+    },
+    {
+      "type": "versus",
+      "dur": 2.4,
+      "voice": "Panathinaikos, six and one... versus Milan, one and six.",
+      "lead": 0.4
+    },
+    {
+      "type": "duel",
+      "dur": 3,
+      "voice": "Panathinaikos score eighty-seven point six a night. Milan allow ninety-three. The worst defence in the EuroLeague.",
+      "title": "POINTS PER GAME",
+      "top": {
+        "label": "SCORED",
+        "team": "PAO",
+        "value": 87.6
+      },
+      "bottom": {
+        "label": "ALLOWED · WORST IN EL",
+        "team": "MILAN",
+        "value": 93.2,
+        "word": "allow"
+      },
+      "note": "MILAN GAMES AVERAGE 177.2 TOTAL POINTS",
+      "pulseCue": 2
+    },
+    {
+      "type": "totals",
+      "dur": 3,
+      "voice": "And Milan's games are shootouts. Four of their last five topped one sixty-five.",
+      "title": "MILAN LAST 5",
+      "subtitle": "TOTAL POINTS PER GAME",
+      "line": 165,
+      "min": 130,
+      "max": 210,
+      "stamp": "4 / 5 TOPPED 165",
+      "games": [
+        {
+          "label": "@BASKONIA",
+          "score": "76-86",
+          "total": 162
+        },
+        {
+          "label": "@MACCABI",
+          "score": "79-97",
+          "total": 176
+        },
+        {
+          "label": "REAL",
+          "score": "89-98",
+          "total": 187
+        },
+        {
+          "label": "DUBAI",
+          "score": "97-101",
+          "total": 198
+        },
+        {
+          "label": "BARÇA",
+          "score": "81-89",
+          "total": 170
+        }
+      ],
+      "stampColor": "blue"
+    },
+    {
+      "type": "model",
+      "dur": 3,
+      "voice": "Our model projects one sixty-nine point four. Almost eight points above a typical Panathinaikos game.",
+      "homePts": 90.4,
+      "awayPts": 79.0,
+      "line": 161.5,
+      "lineLabel": "PAO AVG"
+    },
+    {
+      "type": "pick",
+      "dur": 3.4,
+      "voice": "Our prediction... One sixty-nine total points. Panathinaikos ninety, Milan seventy-nine.",
+      "symbol": "169",
+      "label": "TOTAL POINTS",
+      "chips": [
+        "PAO 90",
+        "MILAN 79"
+      ],
+      "title": "OUR PREDICTION",
+      "chipsCue": 2
+    },
+    {
+      "type": "outro",
+      "dur": 3.2,
+      "tail": 0.9,
+      "voice": "Follow SVA Consult. See the game differently.",
+      "cta": "FOLLOW FOR DAILY ANALYSIS",
+      "lead": 0.75,
+      "disclaimer": false
+    }
+  ]
+}

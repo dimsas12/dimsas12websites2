@@ -194,7 +194,7 @@ function sHook(t, a, b, s) {
   ctx.translate(W / 2 + Math.sin(t * 60) * 3 * (1 - strike), lerp(830, 520, move));
   const sc = lerp(1.05 - .05 * p(t, a, a + .4), .42, move);
   ctx.scale(sc, sc);
-  text(s.from, 0, 0, 380, { italic: true, color: strike > 0 ? '#C9CED9' : C.white });
+  text(s.from, 0, 0, fitSize(s.from, 900, 380), { italic: true, color: strike > 0 ? '#C9CED9' : C.white });
   if (strike > 0) {
     ctx.save();
     ctx.strokeStyle = C.red; ctx.lineWidth = 34; ctx.lineCap = 'round'; glow(C.red, 40);
@@ -211,7 +211,7 @@ function sHook(t, a, b, s) {
     const z = lerp(3.2, 1, k);
     ctx.scale(z, z); ctx.globalAlpha = clamp(k * 2);
     glow(C.blue, 70);
-    text(s.to, 0, 0, 420, { italic: true, color: C.blue });
+    text(s.to, 0, 0, fitSize(s.to, 860, 420), { italic: true, color: C.blue });
     ctx.restore();
     shock(t, c1 + .38, W / 2, 960, 120, 760);
     burst(t, c1 + .38, W / 2, 960, 34);
@@ -413,7 +413,7 @@ function sModel(t, a, b, s) {
     ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x0, ny - 4, (x1 - x0) * nk, 8);
     for (let v = lo; v <= hi; v += 2) { ctx.fillRect(X(v) - 2, ny - 16, 4, 32); text(String(v), X(v), ny + 52, 26, { weight: 600, color: C.grey }); }
     ctx.fillStyle = C.white; ctx.fillRect(X(s.line) - 4, ny - 90, 8, 90);
-    text('LINE ' + s.line, X(s.line) - 18, ny - 70, 30, { align: 'right', weight: 800, color: C.grey });
+    text((s.lineLabel || 'LINE') + ' ' + s.line, X(s.line) - 18, ny - 70, 30, { align: 'right', weight: 800, color: C.grey });
     ctx.restore();
     const mk = p(t, c1, c1 + .5, easeOutExpo);
     const mx = X(lerp(s.line, total, mk));
@@ -434,7 +434,7 @@ function sModel(t, a, b, s) {
 
 // --- pick: the reveal
 function sPick(t, a, b, s) {
-  const c1 = cue(s, a, 1, 1), c2 = cue(s, a, 2, 2), c3 = cue(s, a, 3, 2.8);
+  const c1 = cue(s, a, 1, 1), c2 = cue(s, a, 2, 2), c3 = cue(s, a, s.chipsCue ?? 3, 2.8);
   const tk = p(t, a, a + .25, easeOutExpo);
   ctx.save(); ctx.translate(W / 2, 300); const z = lerp(2.5, 1, tk); ctx.scale(z, z); ctx.globalAlpha *= clamp(tk * 2);
   text(tx(s.title || 'THE PICK'), 0, 0, 110, { italic: true, spacing: 6 });
@@ -462,7 +462,7 @@ function sPick(t, a, b, s) {
     ctx.restore();
     burst(t, c1 + .1, W / 2, 740, 40);
   }
-  const ok = p(t, c2 - .05, c2 + .25, easeOutExpo);
+  const ok = s.odds ? p(t, c2 - .05, c2 + .25, easeOutExpo) : 0;   // analysis-only videos have no odds
   if (ok > 0) {
     ctx.save(); ctx.translate(W / 2, 1160); const zz = lerp(2, 1, ok); ctx.scale(zz, zz); ctx.globalAlpha *= clamp(ok * 2);
     text('@' + (1 + (s.odds - 1) * p(t, c2, c2 + .5)).toFixed(2), 0, 0, 170, { italic: true });
@@ -475,7 +475,7 @@ function sPick(t, a, b, s) {
   let cx = W / 2 - tw / 2;
   chips.forEach((c, i) => {
     const k = p(t, c3 - .1 + i * .12, c3 + .2 + i * .12, easeBack);
-    pill(tx(c), cx + ws[i] / 2, 1400, 40, k, i ? { fill: 'rgba(255,255,255,.08)', line: C.white } : {});
+    pill(tx(c), cx + ws[i] / 2, s.odds ? 1400 : 1220, 40, k, i ? { fill: 'rgba(255,255,255,.08)', line: C.white } : {});
     cx += ws[i] + 30;
   });
 }
@@ -490,7 +490,7 @@ function sOutro(t, a, b, s) {
   text('SVA CONSULT', W / 2, 1110, 80, { alpha: k1, spacing: lerp(40, 14, k1) });
   text('SEE THE GAME DIFFERENTLY', W / 2, 1195, 34, { alpha: p(t, a + 1, a + 1.3), color: C.blue, spacing: 6 });
   pill(tx(s.cta || 'FOLLOW FOR DAILY PICKS'), W / 2, 1360, 40, p(t, a + 1.2, a + 1.5, easeBack), { fill: C.blue, line: C.blue });
-  text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
+  if (s.disclaimer !== false) text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
 }
 
 const SCENES = { hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
@@ -502,7 +502,7 @@ const IMPACTS = {
   totals: (s, a) => [cue(s, a, 1, 1.4) + .2],
   numbers: (s, a) => s.items.map((_, i) => cue(s, a, i + 1, .7 + i * .7) + .2).concat([cue(s, a, s.items.length + 1, .7 + s.items.length * .7) + .1]),
   model: (s, a) => [cue(s, a, 0, 0) + .4, cue(s, a, 1, 1.8) + .6],
-  pick: (s, a) => [cue(s, a, 1, 1) + .1, cue(s, a, 2, 2) + .2],   // nothing on "The pick" so the word stays clear
+  pick: (s, a) => s.odds ? [cue(s, a, 1, 1) + .1, cue(s, a, 2, 2) + .2] : [cue(s, a, 1, 1) + .1],   // nothing on "The pick" so the word stays clear
   outro: (s, a) => [a + .55],
 };
 const TRANSITIONS = ['slash', 'whip', 'zoom', 'glitch'];

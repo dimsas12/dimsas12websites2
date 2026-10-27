@@ -1,6 +1,7 @@
 // Renders a pick video to MP4 with voiceover and sound design.
 //   node render.js picks/pao-milan.json                   -> output/pao-milan.mp4
 //   node render.js picks/pao-milan.json --stills 2,5,10   (PNG previews, uses the voice timing)
+//   node render.js picks/pao-milan.json --remix           (rebuild audio only, keeps rendered frames)
 // A pick can set "template": "template-classic" for the older long-form layout.
 const { chromium } = require('playwright');
 const { spawn, execFileSync } = require('child_process');
@@ -123,6 +124,13 @@ function mix(video, out, dur, clips, tl, data, workDir, classic) {
 
   const out = path.join(outDir, name + '.mp4');
   const silent = clips.length ? path.join(workDir, 'video.mp4') : out;
+  // --remix: reuse the rendered frames and only rebuild the audio
+  if (flag === '--remix' && fs.existsSync(silent)) {
+    await browser.close();
+    mix(silent, out, dur, clips, tl, data, workDir, classic);
+    console.log('remixed', out);
+    return;
+  }
   const ff = spawn('ffmpeg', ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silent],
     { stdio: ['pipe', 'inherit', 'inherit'] });
