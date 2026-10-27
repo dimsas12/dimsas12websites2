@@ -272,7 +272,7 @@ function sVersus(t, a, b, s) {
 
 // --- duel: two giant numbers (e.g. best vs worst defence)
 function sDuel(t, a, b, s) {
-  const c1 = cue(s, a, 1, 1.8);
+  const c1 = cue(s, a, s.pulseCue ?? 1, 1.8);
   const bt = wordT(s, a, s.bottom.word || 'worst', 1.0);
   text(tx(s.title), W / 2, 300, 40, { italic: true, color: C.grey, spacing: 5, alpha: p(t, a, a + .2) });
   [[s.top, 400, a + .05, false], [s.bottom, 900, bt - .1, true]].forEach(([d, y, t0, hi]) => {
@@ -307,7 +307,7 @@ function sTotals(t, a, b, s) {
   s.games.forEach((g, i) => {
     const cx = x0 + slot * (i + .5), k = p(t, a + .1 + i * .08, a + .45 + i * .08, easeBack);
     const over = g.total > s.line, top = lerp(y0, Y(g.total), k);
-    const redFlash = !over && t > c1 ? Math.max(0, 1 - (t - c1 - i * .05) / .5) : 0;
+    const redFlash = s.stampColor !== 'blue' && !over && t > c1 ? Math.max(0, 1 - (t - c1 - i * .05) / .5) : 0;
     ctx.save();
     if (over) glow(C.blue, 40);
     rrect(cx - bw / 2, top, bw, Math.max(.1, y0 - top), [18, 18, 4, 4]);
@@ -341,9 +341,9 @@ function sTotals(t, a, b, s) {
     ctx.save();
     ctx.translate(W / 2, 1480); ctx.rotate(-.06); const z = lerp(2.6, 1, sk); ctx.scale(z, z); ctx.globalAlpha *= clamp(sk * 2);
     font(64, 900, true); ctx.letterSpacing = '4px';
-    const w = ctx.measureText(tx(s.stamp)).width + 90;
-    rrect(-w / 2, -58, w, 116, 18); ctx.fillStyle = 'rgba(255,59,78,.15)'; ctx.fill();
-    ctx.strokeStyle = C.red; ctx.lineWidth = 7; glow(C.red, 30); ctx.stroke(); noGlow();
+    const w = ctx.measureText(tx(s.stamp)).width + 90, col = s.stampColor === 'blue' ? C.blue : C.red;
+    rrect(-w / 2, -58, w, 116, 18); ctx.fillStyle = s.stampColor === 'blue' ? 'rgba(10,132,255,.2)' : 'rgba(255,59,78,.15)'; ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 7; glow(col, 30); ctx.stroke(); noGlow();
     text(tx(s.stamp), 0, 3, 64, { italic: true, spacing: 4, color: C.white });
     ctx.restore();
   }
@@ -497,8 +497,8 @@ const SCENES = { hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, num
 // moments that get camera shake + flash + an impact sound
 const IMPACTS = {
   hook: (s, a) => [cue(s, a, 1, 1.6) + .38],
-  versus: (s, a) => [a + .25, wordT(s, a, (tx(D.away.short || D.away) || 'x').toLowerCase().slice(0, 4), 1.1) + .15],
-  duel: (s, a) => [wordT(s, a, s.bottom.word || 'worst', 1) + .2, cue(s, a, 1, 1.8) + .1],
+  versus: (s, a) => [a + .05, wordT(s, a, (tx(D.away.short || D.away) || 'x').toLowerCase().slice(0, 4), 1.1) + .15],
+  duel: (s, a) => [wordT(s, a, s.bottom.word || 'worst', 1) + .2, cue(s, a, s.pulseCue ?? 1, 1.8) + .1],
   totals: (s, a) => [cue(s, a, 1, 1.4) + .2],
   numbers: (s, a) => s.items.map((_, i) => cue(s, a, i + 1, .7 + i * .7) + .2).concat([cue(s, a, s.items.length + 1, .7 + s.items.length * .7) + .1]),
   model: (s, a) => [cue(s, a, 0, 0) + .4, cue(s, a, 1, 1.8) + .6],

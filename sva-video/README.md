@@ -23,4 +23,9 @@ Offline Kokoro v1.0 (sherpa-onnx), a blend of `am_puck` and `am_fenrir` with a b
 Download `kokoro-multi-lang-v1_0.tar.bz2` from github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models into
 `tts-models/` (or point `SVA_TTS_DIR` at it). Change the voice with `SVA_VOICE=am_michael:1`, pace with `SVA_SPEED`.
 
-Requires Node, Playwright (Chromium), ffmpeg, and `pip install "sherpa-onnx<2" soundfile scipy`.
+### Pronunciation
+Names are spoken from `pronounce.json` (word → IPA), e.g. `"Panathinaikos": "pˌɑnɑθˌinɑikˈɔs"`.
+Add every new team/player name there before rendering; the rest of each sentence is phonemized by espeak
+and the model runs on the combined phonemes, so names come out right with no pauses.
+
+Requires Node, Playwright (Chromium), ffmpeg, and `pip install "sherpa-onnx<2" onnxruntime soundfile scipy`.

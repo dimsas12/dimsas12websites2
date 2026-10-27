@@ -64,18 +64,20 @@ function mix(video, out, dur, clips, tl, data, workDir, classic) {
     const sfxDir = path.join(workDir, 'sfx');
     execFileSync('python3', [path.join(__dirname, 'sfx.py'), sfxDir, String(dur)]);
     const fx = [];
-    tl.cuts.forEach((t, i) => fx.push(add(`${sfxDir}/whoosh.wav`, t - 0.34, 0.45, 'w' + i)));
-    tl.hits.forEach((t, i) => fx.push(add(`${sfxDir}/impact.wav`, t - 0.02, 0.55, 'h' + i)));
+    tl.cuts.forEach((t, i) => fx.push(add(`${sfxDir}/whoosh.wav`, t - 0.34, 0.35, 'w' + i)));
+    tl.hits.forEach((t, i) => fx.push(add(`${sfxDir}/impact.wav`, t - 0.02, 0.45, 'h' + i)));
     const pi = data.scenes.findIndex(s => s.type === 'pick');
     if (pi >= 0) {
       const reveal = tl.scenes[pi] + ((data.scenes[pi].cues || [])[1] ?? 1);
       fx.push(add(`${sfxDir}/riser.wav`, reveal - 1.6, 0.22, 'r0'));
     }
     const bed = add(`${sfxDir}/bed.wav`, 0, 0.3, 'bed');
-    filters.push(`[vo]asplit=2[vo1][vo2]`);
+    filters.push(`[vo]asplit=3[vo1][vo2][vo3]`);
     // music ducks under the voice
     filters.push(`${bed}[vo2]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=350[bedd]`);
-    filters.push(`${fx.join('')}amix=inputs=${fx.length}:normalize=0[fx]`);
+    filters.push(`${fx.join('')}amix=inputs=${fx.length}:normalize=0[fxraw]`);
+    // effects also duck under the voice so they never mask a word
+    filters.push(`[fxraw][vo3]sidechaincompress=threshold=0.03:ratio=4:attack=5:release=200[fx]`);
     filters.push(`[vo1][fx][bedd]amix=inputs=3:normalize=0,alimiter=limit=0.9[all]`);
     final = '[all]';
   }

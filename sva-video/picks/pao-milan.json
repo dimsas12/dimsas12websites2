@@ -1,69 +1,121 @@
 {
   "competition": "EUROLEAGUE · ROUND 8",
-  "home": { "en": "PAO", "full": "PANATHINAIKOS", "short": "Panathinaikos", "record": "6-1" },
-  "away": { "en": "MILAN", "full": "ARMANI MILAN", "short": "Milan", "record": "1-6" },
+  "home": {
+    "en": "PAO",
+    "full": "PANATHINAIKOS",
+    "short": "Panathinaikos",
+    "record": "6-1"
+  },
+  "away": {
+    "en": "MILAN",
+    "full": "ARMANI MILAN",
+    "short": "Milan",
+    "record": "1-6"
+  },
   "scenes": [
     {
-      "type": "hook", "dur": 2.6, "lead": 0.1,
+      "type": "hook",
+      "dur": 2.6,
+      "lead": 0.1,
       "voice": "The bookies think this one's a coin flip... They're wrong.",
       "line1": "THE BOOKIES SAY",
-      "from": "51%", "fromLabel": "COIN FLIP?",
-      "to": "56%", "toLabel": "OUR MODEL"
+      "from": "51%",
+      "fromLabel": "COIN FLIP?",
+      "to": "56%",
+      "toLabel": "OUR MODEL"
     },
     {
-      "type": "versus", "dur": 2.4,
-      "voice": "Panathinaikos, six and one... versus Milan, one and six."
+      "type": "versus",
+      "dur": 2.4,
+      "voice": "Panathinaikos, six and one... versus Milan, one and six.",
+      "lead": 0.4
     },
     {
-      "type": "duel", "dur": 3,
-      "voice": "The best defence in the EuroLeague, against the worst. Milan leak ninety-three a night.",
-      "title": "POINTS ALLOWED PER GAME",
-      "top": { "label": "BEST DEFENCE", "team": "PAO", "value": 73.9 },
-      "bottom": { "label": "WORST DEFENCE", "team": "MILAN", "value": 93.2, "word": "worst" },
-      "note": "MILAN GAMES AVERAGE 177.2 TOTAL POINTS"
+      "type": "duel",
+      "dur": 3,
+      "voice": "Panathinaikos score eighty-seven point six a night. Milan allow ninety-three. The worst defence in the EuroLeague.",
+      "title": "POINTS PER GAME",
+      "top": {
+        "label": "SCORED",
+        "team": "PAO",
+        "value": 87.6
+      },
+      "bottom": {
+        "label": "ALLOWED · WORST IN EL",
+        "team": "MILAN",
+        "value": 93.2,
+        "word": "allow"
+      },
+      "note": "MILAN GAMES AVERAGE 177.2 TOTAL POINTS",
+      "pulseCue": 2
     },
     {
-      "type": "totals", "dur": 3,
-      "voice": "But PAO games stay low. Only two of their last five went over.",
-      "title": "PAO LAST 5",
+      "type": "totals",
+      "dur": 3,
+      "voice": "And Milan's games fly over. Four of their last five cleared one sixty-five and a half.",
+      "title": "MILAN LAST 5",
       "subtitle": "TOTAL POINTS vs LINE 165.5",
-      "line": 165.5, "min": 110, "max": 190,
-      "stamp": "2 / 5 OVER",
+      "line": 165.5,
+      "min": 130,
+      "max": 210,
+      "stamp": "4 / 5 OVER",
       "games": [
-        { "label": "ASVEL", "score": "102-79", "total": 181 },
-        { "label": "MACCABI", "score": "90-67", "total": 157 },
-        { "label": "FENER", "score": "92-74", "total": 166 },
-        { "label": "PARTIZAN*", "score": "72-55", "total": 127 },
-        { "label": "BASKONIA", "score": "85-79", "total": 164 }
+        {
+          "label": "@BASKONIA",
+          "score": "76-86",
+          "total": 162
+        },
+        {
+          "label": "@MACCABI",
+          "score": "79-97",
+          "total": 176
+        },
+        {
+          "label": "REAL",
+          "score": "89-98",
+          "total": 187
+        },
+        {
+          "label": "DUBAI",
+          "score": "97-101",
+          "total": 198
+        },
+        {
+          "label": "BARÇA",
+          "score": "81-89",
+          "total": 170
+        }
+      ],
+      "stampColor": "blue"
+    },
+    {
+      "type": "model",
+      "dur": 3,
+      "voice": "Our model projects one sixty-nine point four. Nearly four points over the line.",
+      "homePts": 90.4,
+      "awayPts": 79.0,
+      "line": 165.5
+    },
+    {
+      "type": "pick",
+      "dur": 3.4,
+      "voice": "The pick... Over one sixty-five and a half. One point nine five. One percent stake.",
+      "symbol": "OVER",
+      "label": "165.5 POINTS",
+      "odds": 1.95,
+      "book": "PAMESTOIXIMA",
+      "chips": [
+        "EV +9.2%",
+        "STAKE 1%"
       ]
     },
     {
-      "type": "numbers", "dur": 3,
-      "voice": "Head to head? One eighty-five. One sixty-one. Average, one seventy-three.",
-      "title": "HEAD TO HEAD",
-      "line": 165.5,
-      "items": [
-        { "value": 185, "label": "MILAN 96-89 PAO · DEC 2025" },
-        { "value": 161, "label": "PAO 74-87 MILAN · JAN 2026" }
-      ],
-      "result": { "label": "AVG", "value": 173 }
-    },
-    {
-      "type": "model", "dur": 3,
-      "voice": "Our model projects one sixty-nine point four. Nearly four points over the line.",
-      "homePts": 90.4, "awayPts": 79.0, "line": 165.5
-    },
-    {
-      "type": "pick", "dur": 3.4,
-      "voice": "The pick... Over one sixty-five and a half. One point nine five. One percent stake.",
-      "symbol": "OVER", "label": "165.5 POINTS",
-      "odds": 1.95, "book": "PAMESTOIXIMA",
-      "chips": ["EV +9.2%", "STAKE 1%"]
-    },
-    {
-      "type": "outro", "dur": 3.2, "tail": 0.9,
-      "voice": "Follow S, V, A. Consult. See the game differently.",
-      "cta": "FOLLOW FOR DAILY PICKS"
+      "type": "outro",
+      "dur": 3.2,
+      "tail": 0.9,
+      "voice": "Follow SVA Consult. See the game differently.",
+      "cta": "FOLLOW FOR DAILY PICKS",
+      "lead": 0.75
     }
   ]
 }
