@@ -20,7 +20,7 @@ const C = {
   white: '#F5F7FB', grey: '#8A93A8', dim: '#2A3248', red: '#FF4D5E', draw: '#5B6478'
 };
 const FONT = 'Inter, "Inter Display", sans-serif';
-const DUR = 40;
+let DUR = 40;
 
 const ctx = document.getElementById('c').getContext('2d');
 let D = null, L = 'en';
@@ -187,7 +187,7 @@ function sIntro(t) {
   ctx.restore();
 }
 
-// ---------- scene 2: matchup ----------
+// ---------- scene: matchup ----------
 function glitchText(s, x, y, size, k, opts) {
   // RGB-split slam: strongest right after impact
   const g = (1 - k) * 28;
@@ -200,9 +200,13 @@ function glitchText(s, x, y, size, k, opts) {
   }
   text(s, x, y, size, opts);
 }
-function sMatchup(t) {
-  const a = 3.2, b = 8;
-  if (t < a || t > b) return;
+const fullName = team => team.full ? tx(team.full) : tx(team);
+function fitSize(s, maxW, size, weight = 900, italic = true) {
+  font(size, weight, italic);
+  const w = ctx.measureText(s).width;
+  return w > maxW ? size * maxW / w : size;
+}
+function sMatchup(t, a, b) {
   const e = env(t, a, b);
   ctx.save(); ctx.globalAlpha = e;
   // competition chip
@@ -217,109 +221,101 @@ function sMatchup(t) {
   ctx.restore();
 
   const h = p(t, a + .4, a + .85, easeBack), v = p(t, a + .9, a + 1.3, easeElastic), w = p(t, a + 1.2, a + 1.65, easeBack);
-  // slam shake
   const shake = (1 - p(t, a + .85, a + 1.1)) * (t > a + .85 ? 1 : 0) + (1 - p(t, a + 1.65, a + 1.9)) * (t > a + 1.65 ? 1 : 0);
   ctx.translate(Math.sin(t * 90) * shake * 14, Math.cos(t * 77) * shake * 10);
 
-  const hs = tx(D.home), as = tx(D.away);
-  const size = Math.min(230, 1500 / Math.max(hs.length, as.length, 4));
-  glitchText(hs, W / 2 + (1 - h) * -900, 760, size, h, { weight: 900, italic: true });
-  // VS badge
+  const hs = fullName(D.home), as = fullName(D.away);
+  const size = Math.min(230, fitSize(hs, 940, 230), fitSize(as, 940, 230));
+  glitchText(hs, W / 2 + (1 - h) * -1100, 740, size, h, { weight: 900, italic: true });
+  if (D.home.record) text(D.home.record, W / 2 + (1 - h) * -1100, 740 + size * .5 + 40, 40, { weight: 800, color: C.grey, spacing: 4 });
   ctx.save();
   ctx.translate(W / 2, 960); ctx.scale(v, v); ctx.rotate((1 - v) * .8);
   ctx.beginPath(); ctx.arc(0, 0, 95, 0, Math.PI * 2);
   ctx.fillStyle = C.blue; glow(C.blue, 60); ctx.fill(); noGlow();
   text('VS', 0, 4, 72, { weight: 900, italic: true });
   ctx.restore();
-  glitchText(as, W / 2 + (1 - w) * 900, 1170, size, w, { weight: 900, italic: true, color: C.blue });
+  glitchText(as, W / 2 + (1 - w) * 1100, 1170, size, w, { weight: 900, italic: true, color: C.blue });
+  if (D.away.record) text(D.away.record, W / 2 + (1 - w) * 1100, 1170 + size * .5 + 40, 40, { weight: 800, color: C.grey, spacing: 4 });
 
-  // date line
   const dk = p(t, a + 1.9, a + 2.4);
   ctx.fillStyle = 'rgba(255,255,255,.2)';
-  ctx.fillRect(W / 2 - 300 * dk, 1340, 600 * dk, 2);
-  text(tx(D.date), W / 2, 1400, 40, { alpha: dk, weight: 600, color: C.grey, spacing: 6 });
+  ctx.fillRect(W / 2 - 300 * dk, 1380, 600 * dk, 2);
+  text(tx(D.date), W / 2, 1440, 40, { alpha: dk, weight: 600, color: C.grey, spacing: 6 });
+  if (D.venue) text(tx(D.venue), W / 2, 1500, 26, { alpha: p(t, a + 2.1, a + 2.6), weight: 600, color: C.blue, spacing: 5 });
   ctx.restore();
 }
 
-// ---------- scene 3: form ----------
-function formChip(x, y, r, res, k, i) {
+// ---------- scene: form (W/D/L chips + points blobs) ----------
+function formChip(x, y, r, res, k) {
   if (k <= 0) return;
   ctx.save();
   ctx.translate(x, y); ctx.scale(k, k);
-  const col = res === 'W' ? C.blue : res === 'D' ? C.dim : C.red;
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
   if (res === 'L') { ctx.fillStyle = 'rgba(255,77,94,.12)'; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 5; ctx.stroke(); }
-  else { ctx.fillStyle = col; if (res === 'W') glow(C.blue, 30); ctx.fill(); }
+  else { ctx.fillStyle = res === 'W' ? C.blue : C.dim; if (res === 'W') glow(C.blue, 30); ctx.fill(); }
   noGlow();
   const lab = L === 'en' ? res : ({ W: 'Ν', D: 'Ι', L: 'Η' })[res];
   text(lab, 0, 3, r * .9, { weight: 900, color: res === 'L' ? C.red : C.white });
   ctx.restore();
 }
+function blob(x, y, r, t, hi) {
+  ctx.beginPath();
+  for (let j = 0; j <= 64; j++) {
+    const an = j / 64 * Math.PI * 2;
+    const rr = r + Math.sin(an * 3 + t * 2.5) * 6 + Math.sin(t * 3 + x) * 6;
+    j ? ctx.lineTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr) : ctx.moveTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr);
+  }
+  ctx.closePath();
+  if (hi) { ctx.fillStyle = C.blue; glow(C.blue, 60); } else { ctx.fillStyle = C.bg2; }
+  ctx.fill(); noGlow();
+  if (!hi) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3; ctx.stroke(); }
+}
 const pts = arr => arr.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
-function sForm(t) {
-  const a = 7.6, b = 13.6;
-  if (t < a || t > b) return;
+function sForm(t, a, b, s) {
+  const form = s.form || D.form;
   ctx.save(); ctx.globalAlpha = env(t, a, b);
   sceneTitle(L === 'en' ? 'LAST 5 MATCHES' : 'ΤΕΛΕΥΤΑΙΟΙ 5 ΑΓΩΝΕΣ', t, a);
-  const rows = [[D.home, D.form.home, 640], [D.away, D.form.away, 1000]];
-  rows.forEach(([team, form, y], ri) => {
+  [[D.home, form.home, 640], [D.away, form.away, 1000]].forEach(([team, f, y], ri) => {
     const k = p(t, a + .3 + ri * .3, a + .8 + ri * .3);
     text(tx(team), 120 + (1 - k) * -60, y - 120, 52, { align: 'left', alpha: k, weight: 900, italic: true, color: ri ? C.blue : C.white });
-    form.forEach((r, i) => {
-      formChip(170 + i * 185, y + 20, 72, r, p(t, a + .7 + ri * .5 + i * .12, a + 1.3 + ri * .5 + i * .12, easeElastic), i);
-    });
+    f.forEach((r, i) => formChip(170 + i * 185, y + 20, 72, r, p(t, a + .7 + ri * .5 + i * .12, a + 1.3 + ri * .5 + i * .12, easeElastic)));
   });
-  // points blobs
   const bk = p(t, a + 2.6, a + 3.4, easeElastic);
-  [[D.home, D.form.home, W / 2 - 230, false], [D.away, D.form.away, W / 2 + 230, true]].forEach(([team, form, x, hi]) => {
-    const val = Math.round(pts(form) * p(t, a + 2.8, a + 4));
-    const wob = Math.sin(t * 3 + x) * 6;
+  [[D.home, form.home, W / 2 - 230, false], [D.away, form.away, W / 2 + 230, true]].forEach(([team, f, x, hi]) => {
+    const val = Math.round(pts(f) * p(t, a + 2.8, a + 4));
     ctx.save();
-    ctx.translate(x, 1450); ctx.scale(bk, bk);
-    ctx.beginPath();
-    for (let j = 0; j <= 64; j++) {
-      const an = j / 64 * Math.PI * 2;
-      const rr = 150 + Math.sin(an * 3 + t * 2.5) * 6 + wob;
-      j ? ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr) : ctx.moveTo(Math.cos(an) * rr, Math.sin(an) * rr);
-    }
-    ctx.closePath();
-    if (hi) { ctx.fillStyle = C.blue; glow(C.blue, 60); } else { ctx.fillStyle = C.bg2; }
-    ctx.fill(); noGlow();
-    if (!hi) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3; ctx.stroke(); }
-    text(String(val), 0, -14, 110, { weight: 900 });
-    text(L === 'en' ? 'POINTS' : 'ΒΑΘΜΟΙ', 0, 70, 24, { weight: 700, spacing: 4, color: hi ? C.white : C.grey });
+    ctx.translate(x, 1450); ctx.scale(bk, bk); ctx.translate(-x, -1450);
+    blob(x, 1450, 150, t, hi);
+    text(String(val), x, 1436, 110, { weight: 900 });
+    text(L === 'en' ? 'POINTS' : 'ΒΑΘΜΟΙ', x, 1520, 24, { weight: 700, spacing: 4, color: hi ? C.white : C.grey });
     ctx.restore();
     text(tx(team), x, 1650, 34, { alpha: bk, weight: 800, color: hi ? C.blue : C.grey, spacing: 3 });
   });
   ctx.restore();
 }
 
-// ---------- scene 4: stat bars ----------
+// ---------- scene: head-to-head stat bars ----------
 function fmt(v, s) { return v.toFixed(s.dec) + (s.suffix || ''); }
-function sStats(t) {
-  const a = 13.6, b = 20;
-  if (t < a || t > b) return;
+function sStats(t, a, b, s) {
+  const rows = s.rows || D.stats;
   ctx.save(); ctx.globalAlpha = env(t, a, b);
-  sceneTitle(L === 'en' ? 'HEAD TO HEAD STATS' : 'ΣΥΓΚΡΙΣΗ ΣΤΑΤΙΣΤΙΚΩΝ', t, a);
-  // legend
+  sceneTitle(s.title ? tx(s.title) : (L === 'en' ? 'HEAD TO HEAD STATS' : 'ΣΥΓΚΡΙΣΗ ΣΤΑΤΙΣΤΙΚΩΝ'), t, a);
   const lk = p(t, a + .3, a + .8);
   text(tx(D.home), 100, 500, 44, { align: 'left', alpha: lk, weight: 900, italic: true });
   text(tx(D.away), W - 100, 500, 44, { align: 'right', alpha: lk, weight: 900, italic: true, color: C.blue });
   const maxHalf = 400, cx = W / 2;
-  D.stats.forEach((s, i) => {
+  rows.forEach((r, i) => {
     const y = 680 + i * 260;
     const k0 = a + .6 + i * .35;
     const rk = p(t, k0, k0 + .4);
     const gk = p(t, k0 + .2, k0 + 1.3, easeInOut);
-    text(tx(s), cx, y - 70, 28, { alpha: rk, weight: 700, color: C.grey, spacing: 4 });
-    const mx = Math.max(s.home, s.away);
-    const better = s.lowerIsBetter ? (s.home < s.away ? 'home' : 'away') : (s.home > s.away ? 'home' : 'away');
-    // tracks
+    text(tx(r), cx, y - 70, 28, { alpha: rk, weight: 700, color: C.grey, spacing: 4 });
+    const mx = Math.max(r.home, r.away);
+    const better = r.lowerIsBetter ? (r.home < r.away ? 'home' : 'away') : (r.home > r.away ? 'home' : 'away');
     ctx.globalAlpha = env(t, a, b) * rk;
     rrect(cx - maxHalf - 10, y - 22, maxHalf, 44, 22); ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fill();
     rrect(cx + 10, y - 22, maxHalf, 44, 22); ctx.fill();
-    // bars
-    const hw = maxHalf * s.home / mx * gk, aw = maxHalf * s.away / mx * gk;
+    const hw = maxHalf * r.home / mx * gk, aw = maxHalf * r.away / mx * gk;
     ctx.save();
     if (better === 'home') glow(C.white, 25);
     rrect(cx - 10 - hw, y - 22, Math.max(hw, .1), 44, 22); ctx.fillStyle = better === 'home' ? C.white : C.draw; ctx.fill();
@@ -329,39 +325,35 @@ function sStats(t) {
     rrect(cx + 10, y - 22, Math.max(aw, .1), 44, 22); ctx.fillStyle = better === 'away' ? C.blue : C.draw; ctx.fill();
     ctx.restore();
     ctx.globalAlpha = env(t, a, b);
-    text(fmt(s.home * gk, s), cx - maxHalf - 10, y + 70, 46, { align: 'left', alpha: rk, weight: 900 });
-    text(fmt(s.away * gk, s), cx + maxHalf + 10, y + 70, 46, { align: 'right', alpha: rk, weight: 900, color: C.blue });
+    text(fmt(r.home * gk, r), cx - maxHalf - 10, y + 70, 46, { align: 'left', alpha: rk, weight: 900 });
+    text(fmt(r.away * gk, r), cx + maxHalf + 10, y + 70, 46, { align: 'right', alpha: rk, weight: 900, color: C.blue });
   });
   ctx.restore();
 }
 
-// ---------- scene 5: trend line chart ----------
-function sTrend(t) {
-  const a = 20, b = 25.6;
-  if (t < a || t > b) return;
+// ---------- scene: line chart trend ----------
+function sTrend(t, a, b, s) {
+  const tr = s.trend || D.trend;
   ctx.save(); ctx.globalAlpha = env(t, a, b);
   sceneTitle(L === 'en' ? 'FORM TREND' : 'ΤΑΣΗ ΦΟΡΜΑΣ', t, a);
-  text(tx(D.trend), W / 2, 500, 30, { alpha: p(t, a + .3, a + .8), weight: 700, color: C.grey, spacing: 3 });
-  const vals = D.trend.values;
+  text(tx(tr), W / 2, 500, 30, { alpha: p(t, a + .3, a + .8), weight: 700, color: C.grey, spacing: 3 });
+  const vals = tr.values;
   const x0 = 120, x1 = W - 120, y0 = 1400, y1 = 700;
   const vmax = Math.ceil(Math.max(...vals) + .5), vmin = 0;
   const X = i => lerp(x0, x1, i / (vals.length - 1));
   const Y = v => lerp(y0, y1, (v - vmin) / (vmax - vmin));
-  // gridlines
   for (let g = 0; g <= vmax; g += .5) {
     const gk = p(t, a + .3 + g * .1, a + .8 + g * .1);
     ctx.fillStyle = 'rgba(255,255,255,.07)';
     ctx.fillRect(x0, Y(g), (x1 - x0) * gk, 2);
     if (g % 1 === 0) text(g.toFixed(1), x0 - 20, Y(g), 24, { align: 'right', alpha: gk, weight: 600, color: C.grey });
   }
-  // progress along the path
   const dk = p(t, a + 1, a + 3.4, easeInOut);
   const pos = dk * (vals.length - 1);
   const n = Math.floor(pos), fr = pos - n;
   const pts2 = [];
   for (let i = 0; i <= n; i++) pts2.push([X(i), Y(vals[i])]);
   if (n < vals.length - 1) pts2.push([lerp(X(n), X(n + 1), fr), lerp(Y(vals[n]), Y(vals[n + 1]), fr)]);
-  // area
   if (pts2.length > 1) {
     ctx.beginPath();
     ctx.moveTo(pts2[0][0], y0);
@@ -375,7 +367,6 @@ function sTrend(t) {
     ctx.strokeStyle = C.blue; ctx.lineWidth = 9; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     glow(C.blue, 30); ctx.stroke(); noGlow();
   }
-  // dots
   vals.forEach((v, i) => {
     const k = p(t, a + 1 + i / (vals.length - 1) * 2.4, a + 1.4 + i / (vals.length - 1) * 2.4, easeBack);
     if (k <= 0) return;
@@ -384,13 +375,11 @@ function sTrend(t) {
     ctx.beginPath(); ctx.arc(X(i), Y(v), 7 * k, 0, Math.PI * 2);
     ctx.fillStyle = C.blue; ctx.fill();
   });
-  // head glow
   if (dk > 0 && dk < 1) {
     const q = pts2[pts2.length - 1];
     ctx.beginPath(); ctx.arc(q[0], q[1], 26 + Math.sin(t * 12) * 5, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(10,132,255,.35)'; ctx.fill();
   }
-  // final value bubble
   const fk = p(t, a + 3.4, a + 4, easeElastic);
   if (fk > 0) {
     const lx = X(vals.length - 1), ly = Y(vals[vals.length - 1]);
@@ -399,16 +388,173 @@ function sTrend(t) {
     text(vals[vals.length - 1].toFixed(1), 0, 2, 54, { weight: 900 });
     ctx.restore();
   }
-  // change badge
   const ck = p(t, a + 3.8, a + 4.3);
-  const delta = vals[vals.length - 1] - vals[0];
-  const pct = Math.round(delta / vals[0] * 100);
+  const pct = Math.round((vals[vals.length - 1] - vals[0]) / vals[0] * 100);
   text(`${pct >= 0 ? '▲' : '▼'} ${pct >= 0 ? '+' : ''}${pct}%`, W / 2, 1560, 72, { alpha: ck, weight: 900, color: pct >= 0 ? C.blue : C.red });
   text(L === 'en' ? 'OVER THE LAST 8 GAMES' : 'ΣΤΟΥΣ ΤΕΛΕΥΤΑΙΟΥΣ 8 ΑΓΩΝΕΣ', W / 2, 1640, 26, { alpha: ck, weight: 700, color: C.grey, spacing: 4 });
   ctx.restore();
 }
 
-// ---------- scene 6: key points ----------
+// ---------- scene: game totals vs the line (vertical bars) ----------
+function sTotals(t, a, b, s) {
+  ctx.save(); ctx.globalAlpha = env(t, a, b);
+  sceneTitle(tx(s.title), t, a);
+  text(tx(s.subtitle), W / 2, 500, 28, { alpha: p(t, a + .3, a + .8), weight: 700, color: C.grey, spacing: 3 });
+  const n = s.games.length;
+  const x0 = 170, x1 = W - 70, y0 = 1380, y1 = 640;
+  const Y = v => lerp(y0, y1, (v - s.min) / (s.max - s.min));
+  // gridlines
+  for (let g = s.min; g <= s.max; g += 20) {
+    const gk = p(t, a + .3, a + .9);
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    ctx.fillRect(x0, Y(g), (x1 - x0) * gk, 2);
+    if (Math.abs(Y(g) - Y(s.line)) > 40) text(String(g), x0 - 20, Y(g), 24, { align: 'right', alpha: gk, weight: 600, color: C.grey });
+  }
+  const slot = (x1 - x0) / n, bw = Math.min(150, slot * .62);
+  s.games.forEach((gm, i) => {
+    const cx = x0 + slot * (i + .5);
+    const k0 = a + .7 + i * .3;
+    const gk = p(t, k0, k0 + .9, easeBack);
+    const over = gm.total > s.line;
+    const top = lerp(y0, Y(gm.total), gk);
+    ctx.save();
+    if (over) glow(C.blue, 35);
+    rrect(cx - bw / 2, top, bw, Math.max(y0 - top, .1), [18, 18, 4, 4]);
+    if (over) {
+      const g = ctx.createLinearGradient(0, top, 0, y0);
+      g.addColorStop(0, '#4DA8FF'); g.addColorStop(1, C.blueDeep);
+      ctx.fillStyle = g;
+    } else ctx.fillStyle = C.draw;
+    ctx.fill();
+    ctx.restore();
+    const vk = p(t, k0 + .5, k0 + .9);
+    // result icon
+    const ik = p(t, k0 + .8, k0 + 1.2, easeBack);
+    if (ik > 0) {
+      ctx.save(); ctx.translate(cx, y0 + 60); ctx.scale(ik, ik);
+      ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2);
+      ctx.fillStyle = over ? C.blue : 'rgba(255,77,94,.15)'; ctx.fill();
+      if (!over) { ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.stroke(); }
+      text(over ? '✓' : '✕', 0, 2, 30, { weight: 900, color: over ? C.white : C.red });
+      ctx.restore();
+    }
+    const lab = tx(gm.label);
+    text(lab, cx, y0 + 130, fitSize(lab, slot - 10, 26, 800, false), { alpha: vk, weight: 800, spacing: 1 });
+    text(gm.score, cx, y0 + 172, 26, { alpha: vk, weight: 600, color: C.grey });
+  });
+  // the line, drawn after bars so it sits on top
+  const lk = p(t, a + .5, a + 1.2, easeInOut);
+  const ly = Y(s.line);
+  ctx.save();
+  ctx.strokeStyle = C.white; ctx.lineWidth = 4; ctx.setLineDash([18, 12]);
+  glow(C.white, 12);
+  ctx.beginPath(); ctx.moveTo(x0, ly); ctx.lineTo(lerp(x0, x1, lk), ly); ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha *= lk;
+  rrect(x0 - 140, ly - 22, 124, 44, 22); ctx.fillStyle = C.white; ctx.fill();
+  text(String(s.line), x0 - 78, ly + 1, 26, { weight: 900, color: C.bg });
+  ctx.restore();
+  // bar values on top of the line so they stay readable
+  s.games.forEach((gm, i) => {
+    const cx = x0 + slot * (i + .5), k0 = a + .7 + i * .3;
+    const gk = p(t, k0, k0 + .9, easeBack), over = gm.total > s.line;
+    ctx.save(); glow(C.bg, 16);
+    const top = lerp(y0, Y(gm.total), gk);
+    const vy = Math.abs(Y(gm.total) - 44 - ly) < 28 ? top + 44 : top - 44;
+    text(String(Math.round(gm.total * clamp(gk))), cx, vy, 46, { alpha: p(t, k0 + .5, k0 + .9), weight: 900, color: over || vy > top ? C.white : C.grey });
+    ctx.restore();
+  });
+  // summary
+  const sk = p(t, a + 1.2 + n * .3, a + 1.8 + n * .3, easeBack);
+  ctx.save(); ctx.translate(W / 2, 1680); ctx.scale(sk, sk);
+  font(44, 900); ctx.letterSpacing = '3px';
+  const sw = ctx.measureText(tx(s.summary)).width + 90;
+  rrect(-sw / 2, -50, sw, 100, 50); ctx.fillStyle = 'rgba(10,132,255,.15)'; ctx.fill();
+  ctx.strokeStyle = C.blue; ctx.lineWidth = 3; ctx.stroke();
+  text(tx(s.summary), 0, 3, 44, { weight: 900, spacing: 3 });
+  ctx.restore();
+  if (s.note) text(tx(s.note), W / 2, 1775, 22, { alpha: sk, weight: 500, color: C.grey, italic: true });
+  ctx.restore();
+}
+
+// ---------- scene: the model (expected score vs line, probability) ----------
+function sModel(t, a, b, s) {
+  ctx.save(); ctx.globalAlpha = env(t, a, b);
+  sceneTitle(L === 'en' ? 'THE MODEL' : 'ΤΟ ΜΟΝΤΕΛΟ', t, a);
+  text(L === 'en' ? 'EXPECTED POINTS' : 'ΑΝΑΜΕΝΟΜΕΝΟΙ ΠΟΝΤΟΙ', W / 2, 500, 28, { alpha: p(t, a + .3, a + .8), weight: 700, color: C.grey, spacing: 4 });
+  // team cards
+  [[D.home, s.homePts, 290, false, .5], [D.away, s.awayPts, 790, true, .8]].forEach(([team, v, x, hi, d]) => {
+    const k = p(t, a + d, a + d + .6, easeBack);
+    ctx.save(); ctx.translate(x, 650); ctx.scale(k, k);
+    rrect(-210, -100, 420, 200, 40);
+    ctx.fillStyle = hi ? C.blue : C.bg2;
+    if (hi) glow(C.blue, 40);
+    ctx.fill(); noGlow();
+    if (!hi) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3; ctx.stroke(); }
+    text(tx(team), 0, -48, 30, { weight: 800, spacing: 4, color: hi ? C.white : C.grey });
+    text((v * p(t, a + d + .2, a + d + 1.2)).toFixed(1), 0, 30, 84, { weight: 900 });
+    ctx.restore();
+  });
+  text('+', W / 2, 650, 80, { alpha: p(t, a + .7, a + 1), weight: 900, color: C.blue });
+  // projected total
+  const total = s.homePts + s.awayPts;
+  const tk = p(t, a + 1.3, a + 2.3);
+  text('= ' + (total * tk).toFixed(1), W / 2, 880, 130, { alpha: p(t, a + 1.3, a + 1.6), weight: 900 });
+  text(L === 'en' ? 'PROJECTED TOTAL' : 'ΑΝΑΜΕΝΟΜΕΝΟ ΣΥΝΟΛΟ', W / 2, 975, 26, { alpha: p(t, a + 1.5, a + 1.9), weight: 700, color: C.blue, spacing: 5 });
+  // number line
+  const lo = Math.floor(Math.min(s.line, total) / 2) * 2 - 2, hi = Math.ceil(Math.max(s.line, total) / 2) * 2 + 2;
+  const x0 = 110, x1 = W - 110, ny = 1210;
+  const X = v => lerp(x0, x1, (v - lo) / (hi - lo));
+  const nk = p(t, a + 2, a + 2.6, easeInOut);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  ctx.fillRect(x0, ny - 3, (x1 - x0) * nk, 6);
+  for (let v = lo; v <= hi; v += 2) {
+    if (X(v) > lerp(x0, x1, nk) + 1) break;
+    ctx.fillRect(X(v) - 2, ny - 14, 4, 28);
+    text(String(v), X(v), ny + 50, 24, { weight: 600, color: C.grey });
+  }
+  ctx.restore();
+  // line marker
+  const mk = p(t, a + 2.5, a + 2.9, easeBack);
+  if (mk > 0) {
+    ctx.save(); ctx.translate(X(s.line), ny); ctx.scale(mk, mk);
+    ctx.fillStyle = C.white; ctx.fillRect(-3, -70, 6, 70);
+    text((L === 'en' ? 'LINE ' : 'ΓΡΑΜΜΗ ') + s.line, -16, -50, 28, { align: 'right', weight: 800, color: C.grey });
+    ctx.restore();
+  }
+  // model marker slides from line to projection
+  const sk = p(t, a + 3, a + 3.8, easeInOut);
+  if (sk > 0) {
+    const mx = X(lerp(s.line, total, sk));
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,132,255,.35)';
+    ctx.fillRect(X(s.line), ny - 10, mx - X(s.line), 20);
+    ctx.beginPath(); ctx.arc(mx, ny, 22, 0, Math.PI * 2);
+    ctx.fillStyle = C.blue; glow(C.blue, 40); ctx.fill(); noGlow();
+    text((L === 'en' ? 'MODEL ' : 'ΜΟΝΤΕΛΟ ') + total.toFixed(1), mx, ny + 100, 30, { weight: 900, color: C.blue });
+    const dk = p(t, a + 3.6, a + 4);
+    text('+' + (total - s.line).toFixed(1), (X(s.line) + mx) / 2 + 20, ny - 60, 40, { alpha: dk, weight: 900 });
+    ctx.restore();
+  }
+  // probability bars
+  [[L === 'en' ? 'IMPLIED BY ODDS' : 'ΑΠΟ ΤΗΝ ΑΠΟΔΟΣΗ', s.implied, false, 1460], [L === 'en' ? 'OUR ESTIMATE' : 'Η ΕΚΤΙΜΗΣΗ ΜΑΣ', s.prob, true, 1610]].forEach(([lab, v, hi, y], i) => {
+    const k0 = a + 4 + i * .35;
+    const rk = p(t, k0, k0 + .4), gk = p(t, k0 + .1, k0 + 1.1, easeInOut);
+    text(lab, x0, y - 45, 26, { align: 'left', alpha: rk, weight: 700, color: C.grey, spacing: 3 });
+    ctx.save();
+    ctx.globalAlpha *= rk;
+    rrect(x0, y - 18, x1 - x0 - 190, 36, 18); ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fill();
+    rrect(x0, y - 18, Math.max((x1 - x0 - 190) * v / 100 * gk, .1), 36, 18);
+    ctx.fillStyle = hi ? C.blue : C.draw; if (hi) glow(C.blue, 30); ctx.fill();
+    ctx.restore();
+    text((v * gk).toFixed(1).replace(/\.0$/, '') + '%', x1, y, 52, { align: 'right', alpha: rk, weight: 900, color: hi ? C.blue : C.white });
+  });
+  ctx.restore();
+}
+
+// ---------- scene: key points ----------
 function wrap(s, maxW, size, weight) {
   font(size, weight);
   const words = s.split(' '), lines = [];
@@ -420,51 +566,51 @@ function wrap(s, maxW, size, weight) {
   if (cur) lines.push(cur);
   return lines;
 }
-function sPoints(t) {
-  const a = 25.6, b = 30.6;
-  if (t < a || t > b) return;
+function sPoints(t, a, b, s) {
+  const items = s.items || D.points;
+  const n = items.length;
+  const ch = n > 3 ? 230 : 260, gap = n > 3 ? 40 : 70, fs = n > 3 ? 40 : 44;
   ctx.save(); ctx.globalAlpha = env(t, a, b);
   sceneTitle(L === 'en' ? 'KEY INSIGHTS' : 'ΒΑΣΙΚΑ ΣΗΜΕΙΑ', t, a);
-  D.points.forEach((pt, i) => {
-    const y = 560 + i * 330;
+  items.forEach((pt, i) => {
+    const y = 520 + i * (ch + gap);
     const k = p(t, a + .5 + i * .55, a + 1.1 + i * .55, easeBack);
     if (k <= 0) return;
+    const col = pt.risk ? C.red : C.blue;
     ctx.save();
     ctx.translate((1 - k) * 700, 0);
     ctx.globalAlpha *= clamp(k);
-    rrect(80, y, W - 160, 260, 36);
-    ctx.fillStyle = 'rgba(16,24,48,.85)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(10,132,255,.35)'; ctx.lineWidth = 2; ctx.stroke();
-    // number badge
-    ctx.beginPath(); ctx.arc(190, y + 130, 54, 0, Math.PI * 2);
-    ctx.fillStyle = C.blue; glow(C.blue, 30); ctx.fill(); noGlow();
-    text(String(i + 1), 190, y + 133, 56, { weight: 900 });
-    // text reveal
-    const lines = wrap(tx(pt), W - 420, 44, 700);
+    rrect(80, y, W - 160, ch, 36);
+    ctx.fillStyle = pt.risk ? 'rgba(48,14,24,.85)' : 'rgba(16,24,48,.85)'; ctx.fill();
+    ctx.strokeStyle = pt.risk ? 'rgba(255,77,94,.45)' : 'rgba(10,132,255,.35)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(190, y + ch / 2, 54, 0, Math.PI * 2);
+    ctx.fillStyle = col; glow(col, 30); ctx.fill(); noGlow();
+    text(pt.risk ? '!' : String(i + 1), 190, y + ch / 2 + 3, 56, { weight: 900 });
+    const lines = wrap(tx(pt), W - 420, fs, 700);
     const rk = p(t, a + .8 + i * .55, a + 1.6 + i * .55);
-    const ly0 = y + 130 - (lines.length - 1) * 30;
-    lines.forEach((ln, j) => text(ln, 290, ly0 + j * 60, 44, { align: 'left', weight: 700, alpha: clamp(rk * lines.length - j) }));
+    const lh = fs * 1.35;
+    const ly0 = y + ch / 2 - (lines.length - 1) * lh / 2;
+    lines.forEach((ln, j) => text(ln, 290, ly0 + j * lh, fs, { align: 'left', weight: 700, alpha: clamp(rk * lines.length - j) }));
     ctx.restore();
   });
   ctx.restore();
 }
 
-// ---------- scene 7: the pick ----------
-function sPick(t) {
-  const a = 30.6, b = 36.4;
-  if (t < a || t > b) return;
+// ---------- scene: the pick ----------
+function sPick(t, a, b, s) {
+  const pk = s.symbol ? s : D.pick;
+  const label = pk.label ? tx(pk.label) : tx(pk);
+  const ring = pk.ring ?? pk.confidence;
+  const ringLabel = pk.ringLabel ? tx(pk.ringLabel) : (L === 'en' ? 'CONFIDENCE' : 'ΣΙΓΟΥΡΙΑ');
   const e = env(t, a, b, .3, .4);
   ctx.save(); ctx.globalAlpha = e;
-  // label
   const lk = p(t, a, a + .5, easeBack);
-  text(L === 'en' ? 'THE PICK' : 'Η ΕΠΙΛΟΓΗ', W / 2, 430 + (1 - lk) * 60, 76, { alpha: clamp(lk), weight: 900, italic: true, spacing: 6 });
-  text(`${tx(D.home)} – ${tx(D.away)}`, W / 2, 520, 34, { alpha: p(t, a + .3, a + .8), weight: 700, color: C.grey, spacing: 4 });
-  // blob
+  text(L === 'en' ? 'THE PICK' : 'Η ΕΠΙΛΟΓΗ', W / 2, 400 + (1 - lk) * 60, 76, { alpha: clamp(lk), weight: 900, italic: true, spacing: 6 });
+  text(`${tx(D.home)} – ${tx(D.away)}`, W / 2, 490, 34, { alpha: p(t, a + .3, a + .8), weight: 700, color: C.grey, spacing: 4 });
   const bk = p(t, a + .4, a + 1.4, easeElastic);
-  const cy = 940;
+  const cy = 880;
   ctx.save();
   ctx.translate(W / 2, cy); ctx.scale(bk, bk);
-  // pulse rings
   for (let r = 0; r < 3; r++) {
     const ph = ((t - a) * .7 + r / 3) % 1;
     ctx.beginPath(); ctx.arc(0, 0, 300 + ph * 260, 0, Math.PI * 2);
@@ -480,35 +626,52 @@ function sPick(t) {
   const g = ctx.createRadialGradient(-80, -100, 20, 0, 0, 320);
   g.addColorStop(0, '#4DA8FF'); g.addColorStop(.6, C.blue); g.addColorStop(1, C.blueDeep);
   ctx.fillStyle = g; glow(C.blue, 90); ctx.fill(); noGlow();
-  // highlight
   ctx.beginPath(); ctx.ellipse(-110, -150, 70, 34, -.6, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fill();
   const sk = p(t, a + 1.1, a + 1.6, easeBack);
   ctx.scale(sk, sk);
-  text(D.pick.symbol, 0, -40, 260, { weight: 900, italic: true });
-  text(tx(D.pick), 0, 150, tx(D.pick).length > 10 ? 44 : 58, { weight: 900, spacing: 4 });
+  text(pk.symbol, 0, -40, fitSize(pk.symbol, 460, 260), { weight: 900, italic: true });
+  text(label, 0, 150, fitSize(label, 440, 58, 900, false), { weight: 900, spacing: 4 });
   ctx.restore();
   // odds counter
   const ok = p(t, a + 1.8, a + 3, easeOut);
-  text(L === 'en' ? 'ODDS' : 'ΑΠΟΔΟΣΗ', W / 2 - 220, 1380, 28, { alpha: p(t, a + 1.7, a + 2.1), weight: 700, color: C.grey, spacing: 5 });
-  text('@' + (1 + (D.pick.odds - 1) * ok).toFixed(2), W / 2 - 220, 1470, 96, { alpha: p(t, a + 1.7, a + 2.1), weight: 900 });
-  // confidence ring
+  const oa = p(t, a + 1.7, a + 2.1);
+  text(L === 'en' ? 'ODDS' : 'ΑΠΟΔΟΣΗ', W / 2 - 220, 1300, 28, { alpha: oa, weight: 700, color: C.grey, spacing: 5 });
+  text('@' + (1 + (pk.odds - 1) * ok).toFixed(2), W / 2 - 220, 1390, 96, { alpha: oa, weight: 900 });
+  if (pk.book) text(pk.book, W / 2 - 220, 1470, 26, { alpha: oa, weight: 600, color: C.blue, spacing: 2 });
+  // ring
   const cfk = p(t, a + 2.1, a + 3.6, easeInOut);
-  const rx = W / 2 + 230, ry = 1440;
+  const rx = W / 2 + 230, ry = 1370;
+  ctx.save();
   ctx.globalAlpha = e * p(t, a + 1.9, a + 2.3);
   ctx.beginPath(); ctx.arc(rx, ry, 110, 0, Math.PI * 2);
   ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.lineWidth = 18; ctx.stroke();
-  ctx.beginPath(); ctx.arc(rx, ry, 110, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * D.pick.confidence / 100 * cfk);
+  ctx.beginPath(); ctx.arc(rx, ry, 110, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ring / 100 * cfk);
   ctx.strokeStyle = C.blue; ctx.lineCap = 'round'; glow(C.blue, 30); ctx.stroke(); noGlow();
-  text(Math.round(D.pick.confidence * cfk) + '%', rx, ry - 6, 56, { weight: 900 });
-  text(L === 'en' ? 'CONFIDENCE' : 'ΣΙΓΟΥΡΙΑ', rx, ry + 40, 18, { weight: 700, color: C.grey, spacing: 3 });
+  text(Math.round(ring * cfk) + '%', rx, ry - 6, 56, { weight: 900 });
+  text(ringLabel, rx, ry + 40, 18, { weight: 700, color: C.grey, spacing: 3 });
+  ctx.restore();
+  // chips (EV, stake...)
+  const chips = pk.chips || [];
+  font(34, 900);
+  const widths = chips.map(c => ctx.measureText(tx(c)).width + 70);
+  const totalW = widths.reduce((x, y) => x + y, 0) + (chips.length - 1) * 30;
+  let cx = W / 2 - totalW / 2;
+  chips.forEach((c, i) => {
+    const k = p(t, a + 3 + i * .25, a + 3.5 + i * .25, easeBack);
+    ctx.save(); ctx.translate(cx + widths[i] / 2, 1640); ctx.scale(k, k);
+    rrect(-widths[i] / 2, -42, widths[i], 84, 42);
+    ctx.fillStyle = i ? 'rgba(255,255,255,.08)' : 'rgba(10,132,255,.2)'; ctx.fill();
+    ctx.strokeStyle = i ? 'rgba(255,255,255,.3)' : C.blue; ctx.lineWidth = 3; ctx.stroke();
+    text(tx(c), 0, 3, 34, { weight: 900, spacing: 2 });
+    ctx.restore();
+    cx += widths[i] + 30;
+  });
   ctx.restore();
 }
 
-// ---------- scene 8: outro ----------
-function sOutro(t) {
-  const a = 36.2;
-  if (t < a) return;
+// ---------- scene: outro ----------
+function sOutro(t, a) {
   const k = p(t, a, a + .8, easeBack);
   ctx.save();
   ctx.globalAlpha = clamp(p(t, a, a + .4));
@@ -516,7 +679,6 @@ function sOutro(t) {
   const tag = L === 'en' ? 'SEE THE GAME DIFFERENTLY' : 'ΔΕΣ ΤΟ ΠΑΙΧΝΙΔΙ ΔΙΑΦΟΡΕΤΙΚΑ';
   text(tag, W / 2, 1120, 46, { alpha: p(t, a + .8, a + 1.3), weight: 900, spacing: 3 });
   text('DATA. ANALYSIS. PRECISION.', W / 2, 1190, 28, { alpha: p(t, a + 1, a + 1.5), weight: 700, color: C.blue, spacing: 6 });
-  // CTA pill
   const ck = p(t, a + 1.3, a + 1.9, easeBack);
   ctx.save();
   ctx.translate(W / 2, 1380); ctx.scale(ck, ck);
@@ -528,22 +690,29 @@ function sOutro(t) {
   ctx.restore();
 }
 
-// ---------- main ----------
+// ---------- timeline ----------
+const SCENES = { matchup: sMatchup, form: sForm, stats: sStats, trend: sTrend, totals: sTotals, model: sModel, points: sPoints, pick: sPick };
+const DEFAULT_SCENES = [
+  { type: 'matchup', dur: 4.4 }, { type: 'form', dur: 6 }, { type: 'stats', dur: 6.4 },
+  { type: 'trend', dur: 5.6 }, { type: 'points', dur: 5 }, { type: 'pick', dur: 5.8 }
+];
+let TL = [], OUTRO = 0;
+function buildTimeline() {
+  let a = 3.2;
+  TL = (D.scenes || DEFAULT_SCENES).map(s => { const r = { s, a, b: a + s.dur }; a = r.b; return r; });
+  OUTRO = a - .2;
+  DUR = OUTRO + 3.8;
+}
+
 function render(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.letterSpacing = '0px';
   background(t);
-  header(t, p(t, 3.1, 3.6) * (1 - p(t, 36, 36.4)));
+  header(t, p(t, 3.1, 3.6) * (1 - p(t, OUTRO - .2, OUTRO + .2)));
   sIntro(t);
-  sMatchup(t);
-  sForm(t);
-  sStats(t);
-  sTrend(t);
-  sPoints(t);
-  sPick(t);
-  sOutro(t);
-  // vignette
+  for (const { s, a, b } of TL) if (t >= a && t <= b) SCENES[s.type](t, a, b, s);
+  if (t >= OUTRO) sOutro(t, OUTRO);
   const g = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .75);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -554,6 +723,7 @@ function loadImg(src) {
 }
 window.setup = async (data, lang) => {
   D = data; L = lang;
+  buildTimeline();
   img.white = await loadImg('assets/mark_white.png');
   img.blue = await loadImg('assets/mark_blue.png');
   await document.fonts.load(`900 40px Inter`);
