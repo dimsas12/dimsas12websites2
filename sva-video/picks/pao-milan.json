@@ -31,28 +31,24 @@
     "record": "1-6"
   },
   "voiceIntro": {
-    "en": "S, V, A. Consult.",
-    "gr": "Καλώς ήρθατε στην Ες Βι Έι Κόνσαλτ."
+    "en": "S, V, A. Consult."
   },
   "voiceOutro": {
-    "en": "See the game differently. Join the community, link in bio. Eighteen plus. Play responsibly.",
-    "gr": "Δείτε το παιχνίδι διαφορετικά. Γίνε μέλος της κοινότητας, το λινκ είναι στο μπάιο. Άνω των δεκαοκτώ. Παίξτε υπεύθυνα."
+    "en": "S, V, A. Consult. See the game differently. Join the community, link in bio. Eighteen plus. Please, play responsibly."
   },
   "scenes": [
     {
       "type": "matchup",
       "dur": 5,
       "voice": {
-        "en": "EuroLeague, round eight. Panathinaikos, six and one, host Armani Milan, one and six.",
-        "gr": "Ευρωλίγκα, όγδοη αγωνιστική. Ο Παναθηναϊκός, με έξι νίκες και μία ήττα, υποδέχεται την Αρμάνι Μιλάνο, με μία νίκη και έξι ήττες."
+        "en": "Tonight... EuroLeague, round eight. Panathinaikos, six and one, top of the table, welcome Armani Milan. A team that's won just once all season."
       }
     },
     {
       "type": "stats",
       "dur": 6.4,
       "voice": {
-        "en": "Panathinaikos have the best defence, allowing seventy-three point nine. But Milan have the worst, allowing ninety-three point two, and their games average one seventy-seven.",
-        "gr": "Ο Παναθηναϊκός έχει την καλύτερη άμυνα, με εβδομήντα τρία κόμμα εννιά πόντους κατά. Η Μιλάνο όμως έχει τη χειρότερη, με ενενήντα τρία κόμμα δύο, και τα ματς της βγάζουν μέσο όρο εκατόν εβδομήντα επτά."
+        "en": "And the numbers tell a story. Panathinaikos have the best defence in the EuroLeague, allowing just seventy-three point nine a night. Milan? The worst. Ninety-three point two. And their games average one seventy-seven."
       },
       "title": {
         "en": "SEASON STATS",
@@ -94,8 +90,7 @@
       "type": "totals",
       "dur": 6.2,
       "voice": {
-        "en": "In Panathinaikos' recent games, only two of five went over one sixty-five and a half.",
-        "gr": "Στα πρόσφατα ματς του Παναθηναϊκού, μόνο τα δύο στα πέντε πέρασαν το εκατόν εξήντα πέντε και μισό."
+        "en": "Now, here's the catch... only two of Panathinaikos' last five games went over one sixty-five and a half."
       },
       "title": {
         "en": "PAO RECENT TOTALS",
@@ -163,8 +158,7 @@
       "type": "totals",
       "dur": 5,
       "voice": {
-        "en": "The last two meetings: one eighty-five, and one sixty-one. Average, one seventy-three.",
-        "gr": "Στα δύο τελευταία μεταξύ τους: εκατόν ογδόντα πέντε, και εκατόν εξήντα ένα. Μέσος όρος, εκατόν εβδομήντα τρία."
+        "en": "But when these two meet, the points flow. One eighty-five... and one sixty-one. That's an average of one seventy-three."
       },
       "title": {
         "en": "HEAD TO HEAD",
@@ -204,8 +198,7 @@
       "type": "model",
       "dur": 7,
       "voice": {
-        "en": "Our model: ninety point four, plus seventy-nine. That's one sixty-nine point four, three point nine above the line. The odds imply fifty-one point three percent. We say fifty-six.",
-        "gr": "Το μοντέλο μας: ενενήντα κόμμα τέσσερα, συν εβδομήντα εννιά. Σύνολο, εκατόν εξήντα εννιά κόμμα τέσσερα, τρία κόμμα εννιά πάνω από τη γραμμή. Η απόδοση δίνει πενήντα ένα κόμμα τρία τοις εκατό. Εμείς, πενήντα έξι."
+        "en": "So, we ran the numbers. Ninety point four for Panathinaikos, plus seventy-nine for Milan. That's a projected one sixty-nine point four, nearly four points clear of the line. The odds imply fifty-one percent. We make it fifty-six."
       },
       "homePts": 90.4,
       "awayPts": 79.0,
@@ -217,8 +210,7 @@
       "type": "points",
       "dur": 6.4,
       "voice": {
-        "en": "Milan have the worst defence. Their games average one seventy-seven. And Sloukas is back. The risk: Panathinaikos' elite defence.",
-        "gr": "Η Μιλάνο έχει τη χειρότερη άμυνα. Τα ματς της βγάζουν εκατόν εβδομήντα επτά. Και επιστρέφει ο Σλούκας. Το ρίσκο: η άμυνα του Παναθηναϊκού."
+        "en": "Why we like it. Milan simply can't defend. Their games average one seventy-seven. And Sloukas is back to run the show. The risk? That elite Panathinaikos defence. We respect it."
       },
       "items": [
         {
@@ -244,8 +236,7 @@
       "type": "pick",
       "dur": 6.4,
       "voice": {
-        "en": "The pick: over one sixty-five and a half, at one ninety-five. Expected value, plus nine point two percent. Stake, one percent.",
-        "gr": "Η επιλογή: Όβερ εκατόν εξήντα πέντε και μισό, σε απόδοση ένα και ενενήντα πέντε. Αναμενόμενη αξία, συν εννιά κόμμα δύο τοις εκατό. Ποντάρισμα, ένα τοις εκατό."
+        "en": "So here's the pick... Over one sixty-five and a half points, at one point nine five. Expected value, plus nine point two percent. Stake, one percent. The value is there. Stay disciplined."
       },
       "symbol": "OVER",
       "label": {

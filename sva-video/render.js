@@ -11,9 +11,14 @@ const FPS = 30;
 const VOICE_LEAD = 0.4;  // seconds between a scene starting and its voice line
 const VOICE_TAIL = 0.6;  // breathing room after a line before the next scene
 const INTRO_VOICE_AT = 0.6;
+// broadcast-style voice chain: clean lows, warmth, presence, tame sibilance,
+// gentle compression and a touch of room so it doesn't sound "in a box"
+const VOICE_FX = ['highpass=f=75', 'equalizer=f=170:t=q:w=1:g=2', 'equalizer=f=3200:t=q:w=1.2:g=2.5',
+  'equalizer=f=7500:t=q:w=1.5:g=-2', 'acompressor=threshold=0.1:ratio=3:attack=5:release=120:makeup=1.5',
+  'aecho=0.85:0.5:28|47:0.07|0.04'].join(',');
 
 function tts(lang, text, out) {
-  const secs = execFileSync('python3', [path.join(__dirname, 'tts.py'), lang, out, text], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const secs = execFileSync('python3', [path.join(__dirname, 'tts.py'), out, text], { stdio: ['ignore', 'pipe', 'ignore'] });
   return parseFloat(secs.toString().trim().split('\n').pop());
 }
 
@@ -97,7 +102,7 @@ function voiceover(data, lang, workDir) {
       return `[${i + 1}]aresample=48000,aformat=channel_layouts=mono,adelay=${ms}[v${i}]`;
     });
     const mix = clips.map((_, i) => `[v${i}]`).join('') +
-      `amix=inputs=${clips.length}:normalize=0,apad,atrim=0:${dur.toFixed(3)},loudnorm=I=-16:TP=-1.5,aformat=channel_layouts=stereo[a]`;
+      `amix=inputs=${clips.length}:normalize=0,` + VOICE_FX + `,apad,atrim=0:${dur.toFixed(3)},loudnorm=I=-16:TP=-1.5,aformat=channel_layouts=stereo[a]`;
     args.push('-filter_complex', parts.concat(mix).join(';'), '-map', '0:v', '-map', '[a]',
       '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', out);
     execFileSync('ffmpeg', args, { stdio: 'inherit' });
