@@ -98,8 +98,33 @@ opponent-defence factor. Negative binomial outcomes with dispersion fitted per
 stat. Minutes of players you `--exclude` are given to the rest of the roster.
 
 **Betting**: no-vig market probabilities (power method, averaged across books),
-EV at the best available price, fractional Kelly capped at 3% of bankroll,
-filters on minimum EV (3%), minimum probability and maximum odds.
+EV at the best available price, fractional Kelly capped at 3% of bankroll per
+bet and 20% per slate, one bet per game (use `--all-markets` to allow more),
+and filters on minimum EV (3%), minimum probability and maximum odds.
+
+## Backtest results
+
+Walk-forward, 2015-16 to 2026-27 (first 76 games), 3,375 games. Every season
+is predicted by a model trained only on earlier seasons. Rating settings were
+tuned on 2014-17, so 2018 onward is a genuine out-of-sample check.
+
+| metric | model | Elo only | always "home team p" |
+|---|---|---|---|
+| winner accuracy | 65.8% | | |
+| log loss (lower is better) | **0.610** | 0.621 | 0.662 |
+| Brier score | 0.212 | | |
+| margin MAE (points) | 9.28 | | |
+| total MAE (points) | **13.20** | | 13.84 (recent league average) |
+
+Win probabilities are well calibrated: games priced 60-70% were won 65.3% of
+the time, 80-90% won 88.4%.
+
+Player props (69,912 player-games): MAE PTS 3.99, REB 1.57, AST 1.09, 3PM 0.72,
+PRA 5.16, slightly better than the player's recent average on every stat
+except assists (tied). Props depend heavily on knowing who plays, so use
+`--exclude` for absent players; that is where most of the value is.
+
+None of this shows the model beats bookmakers: that needs odds. See below.
 
 ## Limitations and honest caveats
 

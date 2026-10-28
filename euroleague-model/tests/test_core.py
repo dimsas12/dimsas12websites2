@@ -130,3 +130,18 @@ def test_market_lines():
     assert m["h2h"]["home"] == (1.75, "b2") and m["h2h"]["away"] == (2.20, "b1")
     assert m["spreads"]["line"] == -3.5
     assert m["totals"]["line"] == 158.5 and 0.5 < m["totals"]["fair_over"] < 0.53
+
+
+def test_simulate_bets_one_per_game():
+    from elbet.backtest import simulate_bets
+    from elbet.config import BetConfig
+    pred = pd.DataFrame([{
+        "game_id": "g1", "date": pd.Timestamp("2025-01-01"), "season": 2025,
+        "pred_margin": 10.0, "margin_sd": 12.0, "pred_total": 160.0, "total_sd": 17.0,
+        "p_home": 0.8, "margin": 12.0, "total": 150.0}])
+    odds = pd.DataFrame([{"game_id": "g1", "home_ml": 1.6, "away_ml": 2.4, "home_line": -3.5,
+                          "home_spread_odds": 1.9, "away_spread_odds": 1.9,
+                          "total_line": 165.5, "over_odds": 1.9, "under_odds": 1.9}])
+    bets, summary = simulate_bets(pred, odds, BetConfig())
+    assert len(bets) == 1 and bets.iloc[0]["won"]
+    assert summary.set_index("market").loc["ALL", "bets"] == 1

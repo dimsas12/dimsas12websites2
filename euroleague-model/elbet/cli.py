@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import signal
 import sys
 
 import numpy as np
@@ -189,6 +190,11 @@ def cmd_picks(args):
     picks = allbets[(allbets["ev"] >= min_edge) & (allbets["model_p"] >= bet_cfg.min_prob)
                     & (allbets["best_odds"] <= bet_cfg.max_odds)]
     picks = picks.sort_values("ev", ascending=False)
+    if bet_cfg.one_bet_per_game and not args.all_markets:
+        picks = picks.drop_duplicates("game")
+    cap = bet_cfg.max_total_exposure * args.bankroll
+    if picks["stake"].sum() > cap:
+        picks = picks.assign(stake=(picks["stake"] * cap / picks["stake"].sum()).round(2))
     if picks.empty:
         print(f"no bets with EV >= {min_edge:.1%}. Full board in reports/markets_{stamp}.csv")
         return
@@ -389,6 +395,8 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--market-weight", type=float, default=0.0,
                     help="blend model with no-vig market probability (0 = pure model)")
     sp.add_argument("--bookmakers", help="comma-separated Odds API bookmaker keys")
+    sp.add_argument("--all-markets", action="store_true",
+                    help="allow several bets on the same game (default: best EV only)")
     staking(sp)
     sp.set_defaults(func=cmd_picks)
 
@@ -406,6 +414,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--regions", default="eu")
     sp.set_defaults(func=cmd_odds_history)
 
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # quiet exit when piped into `head`
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
                         format="%(levelname)s %(message)s")

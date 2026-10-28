@@ -67,6 +67,8 @@ class BetConfig:
     min_edge: float = 0.03  # minimum expected value per unit staked
     min_prob: float = 0.10
     max_odds: float = 6.0
+    max_total_exposure: float = 0.20  # cap on the sum of stakes for one run of `picks`
+    one_bet_per_game: bool = True  # moneyline/spread on the same side are highly correlated
 
 
 @dataclass

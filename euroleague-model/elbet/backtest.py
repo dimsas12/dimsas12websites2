@@ -112,10 +112,12 @@ def simulate_bets(pred: pd.DataFrame, odds: pd.DataFrame, bet: BetConfig,
     bank = bankroll
     placed = []
     for row in df.itertuples(index=False):
-        for b in candidate_bets(row, bet):
-            if (b["ev"] < bet.min_edge or b["p_win"] < bet.min_prob or b["odds"] > bet.max_odds
-                    or not math.isfinite(b["odds"])):
-                continue
+        cands = [b for b in candidate_bets(row, bet)
+                 if b["ev"] >= bet.min_edge and b["p_win"] >= bet.min_prob
+                 and math.isfinite(b["odds"]) and b["odds"] <= bet.max_odds]
+        if bet.one_bet_per_game and cands:
+            cands = [max(cands, key=lambda b: b["ev"])]
+        for b in cands:
             st = min(betting.kelly(b["p_win"], b["odds"], b["p_push"]) * bet.kelly_fraction,
                      bet.max_stake_pct) * bank
             profit_unit = 0.0 if b["push"] else (b["odds"] - 1 if b["won"] else -1.0)
