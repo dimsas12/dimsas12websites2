@@ -475,7 +475,7 @@ function sPlayers(t, a, b, s) {
     ctx.beginPath(); ctx.arc(rx, y, rr, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = col; glow(col, 35);
     ctx.beginPath(); ctx.arc(rx, y, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (pl.value / pl.max) * fill); ctx.stroke(); noGlow();
-    text((pl.value * fill).toFixed(1) + (pl.suffix || ''), rx, y - 8, pl.suffix ? 72 : 84, { italic: true });
+    text((pl.value * fill).toFixed(pl.dec ?? 1) + (pl.suffix || ''), rx, y - 8, pl.suffix ? 72 : 84, { italic: true });
     text(tx(pl.unit), rx, y + 62, 24, { weight: 800, color: C.grey, spacing: 3 });
     text(tx(pl.name), 500, y - 90, fitSize(tx(pl.name), 480, 54), { align: 'left', italic: true });
     text(tx(pl.team), 500, y - 30, 28, { align: 'left', weight: 800, color: col, spacing: 4 });
@@ -517,13 +517,133 @@ function sScoreboard(t, a, b, s) {
     ctx.save(); rrect(x0, y + 30, Math.max(.1, wv), 70, 35);
     ctx.fillStyle = hi ? C.blue : C.draw; if (hi) glow(C.blue, 35); ctx.fill(); ctx.restore();
     text(String(Math.round(v * k)), x0 + wv + 20, y + 66, 66, { align: 'left', italic: true, color: hi ? C.blue : C.white });
-    if (!hi && t > c2) {   // strike the consensus
+    if (!hi && t > c2 && s.strike !== false) {   // strike the consensus
       const st = p(t, c2, c2 + .15);
       ctx.save(); ctx.strokeStyle = C.red; ctx.lineWidth = 12; ctx.lineCap = 'round'; glow(C.red, 25);
       ctx.beginPath(); ctx.moveTo(x0 - 10, y + 75); ctx.lineTo(lerp(x0 - 10, x0 + wv + 120, st), y + 55); ctx.stroke(); ctx.restore();
     }
   });
   pill(tx(s.diffLabel), W / 2, 1480, 44, p(t, c2 + .05, c2 + .35, easeBack));
+}
+
+// --- called: the pre-game call on a card, then a "CALLED IT" stamp + the real result
+function sCalled(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.8);
+  // pre-game card: on screen from frame 0
+  const lift = p(t, c1, c1 + .35, easeOutExpo);
+  ctx.save(); ctx.translate(W / 2, lerp(760, 560, lift)); const z = lerp(1, .78, lift); ctx.scale(z, z);
+  rrect(-430, -250, 860, 500, 44); ctx.fillStyle = 'rgba(16,24,48,.92)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 3; ctx.stroke();
+  pill(tx(s.tag), -230, -170, 26, 1, { fill: 'rgba(255,255,255,.08)', line: C.white });
+  text(tx(s.date), 380, -170, 26, { align: 'right', weight: 700, color: C.grey, spacing: 3 });
+  text(tx(s.label), 0, -60, 34, { weight: 800, color: C.grey, spacing: 5 });
+  text(tx(s.call), 0, 50, fitSize(tx(s.call), 780, 120), { italic: true });
+  text(tx(s.matchup), 0, 170, 30, { weight: 700, color: C.grey, spacing: 3 });
+  ctx.restore();
+  // stamp
+  const sk = p(t, c1 + .05, c1 + .3, easeOutExpo);
+  if (sk > 0) {
+    ctx.save(); ctx.translate(W / 2 + 140, lerp(760, 560, lift) + 150); ctx.rotate(-.14);
+    const zz = lerp(3, 1, sk); ctx.scale(zz, zz); ctx.globalAlpha *= clamp(sk * 2);
+    rrect(-250, -75, 500, 150, 22); ctx.fillStyle = 'rgba(10,132,255,.25)'; ctx.fill();
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 10; glow(C.blue, 40); ctx.stroke(); noGlow();
+    text('✓ ' + tx(s.stamp), 0, 4, 74, { italic: true });
+    ctx.restore();
+    shock(t, c1 + .3, W / 2 + 140, 710, 140, 760);
+    burst(t, c1 + .3, W / 2 + 140, 710, 40);
+  }
+  // the result underneath
+  const rk = p(t, c1 + .4, c1 + .75, easeBack);
+  if (rk > 0) {
+    ctx.save(); ctx.translate(W / 2, 1230); ctx.scale(rk, rk);
+    text(tx(s.resultLabel), 0, -110, 32, { weight: 800, color: C.blue, spacing: 6 });
+    glow(C.blue, 50);
+    text(tx(s.result), 0, 20, fitSize(tx(s.result), 940, 190), { italic: true });
+    ctx.restore();
+  }
+}
+
+// --- quarters: per-quarter bars for both teams + the running lead
+function sQuarters(t, a, b, s) {
+  text(tx(s.title), W / 2, 320, 72, { italic: true, alpha: p(t, a, a + .2) });
+  text(tx(s.subtitle), W / 2, 400, 30, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + .1, a + .3) });
+  const qs = s.quarters, n = qs.length, x0 = 150, x1 = W - 90, slot = (x1 - x0) / n, y0 = 1060, max = s.max ?? 40;
+  const Y = v => y0 - 420 * v / max;
+  // legend
+  [[tx(s.home), C.blue], [tx(s.away), C.draw]].forEach(([lab, col], i) => {
+    const lx = W / 2 + (i ? 60 : -340);
+    ctx.fillStyle = col; ctx.globalAlpha = p(t, a + .1, a + .3); rrect(lx, 470, 34, 34, 8); ctx.fill(); ctx.globalAlpha = 1;
+    text(lab, lx + 50, 488, 32, { align: 'left', italic: true, alpha: p(t, a + .1, a + .3) });
+  });
+  qs.forEach((q, i) => {
+    // Q1 lands on the first line, the rest on the second (the half), all before the verdict
+    const t0 = i === 0 ? cue(s, a, 0, .1) : cue(s, a, 1, 1.2) + (i - 1) * .3;
+    const k = p(t, t0, t0 + .45, easeOutExpo), cx = x0 + slot * (i + .5), bw = slot * .32;
+    [[q[0], C.blue, -1], [q[1], C.draw, 1]].forEach(([v, col, side]) => {
+      const top = lerp(y0, Y(v), k);
+      ctx.save(); rrect(cx + side * (bw / 2 + 6) - bw / 2, top, bw, Math.max(.1, y0 - top), [14, 14, 4, 4]);
+      ctx.fillStyle = col; if (side < 0) glow(C.blue, 30); ctx.fill(); ctx.restore();
+      text(String(Math.round(v * k)), cx + side * (bw / 2 + 6), top - 34, 40, { italic: true, alpha: clamp(k * 2), color: side < 0 ? C.white : C.grey });
+    });
+    text('Q' + (i + 1), cx, y0 + 50, 40, { italic: true, alpha: clamp(k * 2) });
+  });
+  // running lead line
+  let lead = 0;
+  const pts = qs.map((q, i) => { lead += q[0] - q[1]; return [x0 + slot * (i + .5), lead]; });
+  const ly = v => 1420 - v * 8;
+  const lk = p(t, a + .6, a + 2.2, easeInOut);
+  text(tx(s.leadLabel), W / 2, 1150, 30, { weight: 800, color: C.grey, spacing: 4, alpha: lk });
+  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, ly(0)); ctx.lineTo(x1, ly(0)); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.beginPath();
+  const upto = lk * (pts.length - 1);
+  pts.forEach((q, i) => {
+    if (i > upto + 1) return;
+    const x = i <= upto ? q[0] : lerp(pts[i - 1][0], q[0], upto - (i - 1));
+    const v = i <= upto ? q[1] : lerp(pts[i - 1][1], q[1], upto - (i - 1));
+    i ? ctx.lineTo(x, ly(v)) : ctx.moveTo(x, ly(v));
+  });
+  ctx.strokeStyle = C.blue; ctx.lineWidth = 8; ctx.lineJoin = 'round'; glow(C.blue, 30); ctx.stroke(); ctx.restore();
+  pts.forEach((q, i) => {
+    const k = p(t, a + .6 + i * .4, a + .9 + i * .4, easeBack);
+    if (k <= 0) return;
+    ctx.save(); ctx.translate(q[0], ly(q[1])); ctx.scale(k, k);
+    rrect(-58, -32, 116, 64, 32); ctx.fillStyle = C.blue; ctx.fill();
+    text('+' + q[1], 0, 2, 34, { italic: true }); ctx.restore();
+  });
+  const hk = p(t, cue(s, a, (s.cues || [0, 0]).length - 1, 2.6), cue(s, a, (s.cues || [0, 0]).length - 1, 2.6) + .25, easeOutExpo);
+  if (hk > 0) {
+    ctx.save(); ctx.translate(W / 2, 1530); ctx.rotate(-.04); const z = lerp(2.4, 1, hk); ctx.scale(z, z); ctx.globalAlpha *= clamp(hk * 2);
+    pill(tx(s.verdict), 0, 0, 52, 1, { fill: C.blue, line: C.blue });
+    ctx.restore();
+  }
+}
+
+// --- checklist: the pre-game read, each point ticked off on its voice cue
+function sChecklist(t, a, b, s) {
+  text(tx(s.title), W / 2, 320, 72, { italic: true, alpha: p(t, a, a + .2) });
+  const n = s.items.length, gap = 250, y0 = 520;
+  s.items.forEach((it, i) => {
+    const y = y0 + i * gap;
+    const k = p(t, a + .1 + i * .1, a + .45 + i * .1, easeOutExpo);
+    const t0 = cue(s, a, i + 1, .9 + i * .8);
+    const ck = p(t, t0, t0 + .25, easeBack);
+    ctx.save(); ctx.translate((1 - k) * W * (i % 2 ? 1 : -1), 0); ctx.globalAlpha *= clamp(k * 2);
+    rrect(80, y, W - 160, 200, 34);
+    ctx.fillStyle = ck > 0 ? 'rgba(10,132,255,.16)' : 'rgba(255,255,255,.04)'; ctx.fill();
+    ctx.strokeStyle = ck > 0 ? C.blue : 'rgba(255,255,255,.15)'; ctx.lineWidth = 3; ctx.stroke();
+    // tick box
+    ctx.beginPath(); ctx.arc(190, y + 100, 52, 0, Math.PI * 2);
+    ctx.fillStyle = ck > 0 ? C.blue : 'rgba(255,255,255,.06)'; if (ck > 0) glow(C.blue, 35); ctx.fill(); noGlow();
+    if (ck > 0) {
+      ctx.save(); ctx.translate(190, y + 100); ctx.scale(ck, ck);
+      ctx.strokeStyle = C.white; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(-22, 2); ctx.lineTo(-6, 20); ctx.lineTo(24, -18); ctx.stroke(); ctx.restore();
+    }
+    text(tx(it.head), 280, y + 72, fitSize(tx(it.head), 680, 50), { align: 'left', italic: true });
+    text(tx(it.proof), 280, y + 138, fitSize(tx(it.proof), 680, 30, 700, false), { align: 'left', weight: 700, color: ck > 0 ? C.blue : C.grey, spacing: 2 });
+    ctx.restore();
+  });
 }
 
 // --- versus: diagonal split panels
@@ -800,11 +920,14 @@ function sOutro(t, a, b, s) {
   if (s.disclaimer !== false) text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
 }
 
-const SCENES = { gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
+const SCENES = { called: sCalled, quarters: sQuarters, checklist: sChecklist, gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
 // moments that get camera shake + flash + an impact sound
 const IMPACTS = {
   teaser: (s, a) => [cue(s, a, 1, 1.4) + .32, cue(s, a, 2, 2.2) + .15],
   gauge: (s, a) => [cue(s, a, 1, 1.8) + .5],
+  called: (s, a) => [cue(s, a, 1, 1.8) + .3],
+  quarters: (s, a) => [cue(s, a, (s.cues || [0, 0]).length - 1, 2.6) + .2],
+  checklist: (s, a) => s.items.map((_, i) => cue(s, a, i + 1, .9 + i * .8) + .45),   // after the first word, so names stay clear
   margins: (s, a) => [cue(s, a, 1, 1.6) + .22],
   schedule: (s, a) => [wordT(s, a, s.sitWord || 'sits', 2.4) + .15],
   players: (s, a) => [cue(s, a, 1, 1.6) + .15],

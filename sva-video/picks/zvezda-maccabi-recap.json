@@ -1,0 +1,150 @@
+{
+  "competition": "EUROLEAGUE · ROUND 8",
+  "home": {
+    "en": "ZVEZDA",
+    "full": "CRVENA ZVEZDA",
+    "short": "Zvezda",
+    "record": "5-3"
+  },
+  "away": {
+    "en": "MACCABI",
+    "full": "MACCABI TEL AVIV",
+    "short": "Maccabi"
+  },
+  "transitions": [
+    "flash-through-white",
+    "domain-warp-dissolve",
+    "whip-pan",
+    "ridged-burn",
+    "thermal-distortion"
+  ],
+  "scenes": [
+    {
+      "type": "called",
+      "dur": 3.2,
+      "lead": 0.1,
+      "voice": "We said Crvena Zvezda would control this one... They did a lot more than that.",
+      "tag": "PRE-GAME",
+      "date": "27.10",
+      "label": "OUR CALL",
+      "call": "ZVEZDA BY 5+",
+      "matchup": "CRVENA ZVEZDA vs MACCABI · EUROLEAGUE R8",
+      "stamp": "CALLED IT",
+      "resultLabel": "FINAL",
+      "result": "100 – 78"
+    },
+    {
+      "type": "scoreboard",
+      "dur": 3.2,
+      "voice": "Final score: Zvezda one hundred, Maccabi seventy-eight. We needed five. They won by twenty-two.",
+      "title": "FINAL",
+      "tag": "FINAL · BELGRADE",
+      "rows": [
+        {
+          "team": "ZVEZDA",
+          "score": 100
+        },
+        {
+          "team": "MACCABI",
+          "score": 78
+        }
+      ],
+      "consensusLabel": "OUR CALL",
+      "consensus": 5,
+      "modelLabel": "FINAL MARGIN",
+      "model": 22,
+      "max": 25,
+      "strike": false,
+      "diffLabel": "17 POINTS TO SPARE"
+    },
+    {
+      "type": "quarters",
+      "dur": 3.2,
+      "voice": "Thirty-four to fifteen after one quarter. Fifty-five to thirty at the half. Game over.",
+      "title": "HOW IT HAPPENED",
+      "subtitle": "POINTS BY QUARTER",
+      "home": "ZVEZDA",
+      "away": "MACCABI",
+      "quarters": [
+        [
+          34,
+          15
+        ],
+        [
+          21,
+          15
+        ],
+        [
+          23,
+          25
+        ],
+        [
+          22,
+          23
+        ]
+      ],
+      "max": 40,
+      "leadLabel": "ZVEZDA LEAD",
+      "verdict": "GAME OVER AT HALF"
+    },
+    {
+      "type": "checklist",
+      "dur": 3.4,
+      "voice": "Every part of our read landed. The bounce-back, after the derby loss. The Belgrade crowd. Nwora, with eighteen. And Koloko, starting at center on debut.",
+      "title": "THE READ, CHECKED",
+      "items": [
+        {
+          "head": "BOUNCE-BACK SPOT",
+          "proof": "AFTER AN 82-85 OT DERBY LOSS"
+        },
+        {
+          "head": "BELGRADE HOME COURT",
+          "proof": "34-15 FIRST QUARTER"
+        },
+        {
+          "head": "NWORA AVAILABLE",
+          "proof": "18 POINTS"
+        },
+        {
+          "head": "KOLOKO AT THE RIM",
+          "proof": "STARTED AT CENTER ON DEBUT"
+        }
+      ]
+    },
+    {
+      "type": "players",
+      "dur": 3,
+      "voice": "Tyson Carter, a career-high twenty-four with six threes. Jared Butler added twenty-one.",
+      "title": "DIFFERENCE-MAKERS",
+      "players": [
+        {
+          "name": "TYSON CARTER",
+          "team": "CRVENA ZVEZDA",
+          "value": 24,
+          "max": 30,
+          "unit": "PTS · CAREER HIGH",
+          "note": "Six threes, 14 in the first quarter",
+          "dec": 0
+        },
+        {
+          "name": "JARED BUTLER",
+          "team": "CRVENA ZVEZDA",
+          "value": 21,
+          "max": 30,
+          "unit": "POINTS",
+          "note": "Plus Nwora 18 and 9 assists from Chris Jones",
+          "dec": 0
+        }
+      ]
+    },
+    {
+      "type": "outro",
+      "dur": 3.2,
+      "lead": 1.25,
+      "tail": 0.9,
+      "voice": "Follow SVA Consult. See the game differently.",
+      "cta": "FOLLOW FOR DAILY ANALYSIS",
+      "disclaimer": false
+    }
+  ]
+}
