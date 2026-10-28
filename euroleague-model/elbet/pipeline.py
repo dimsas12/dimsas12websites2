@@ -226,8 +226,21 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
         proj["p_out"] = p_out
         proj["p_play"] = proj["player_id"].map(appear).fillna(0.5) * (1 - p_out)
         base = proj["exp_min"].to_numpy()
+        # Team-specific target: 201.3 minutes (incl. overtime) minus what the team's
+        # spare players (played this season, not in the last few games, not injured)
+        # are expected to play, minus a small allowance for call-ups.
+        spare = 0.0
+        season_ids = players.loc[(players["team"] == team) & (players["season"] == season)
+                                 & (players["min"] > 0), "player_id"].unique()
+        out_names = [n for n, w in (absences.get(side) or {}).items() if w >= 0.75]
+        for pid in set(season_ids) - set(proj["player_id"]):
+            st = props.states.get(pid)
+            if st is None or st.s_n <= 0 or any(match_player(n, [st.player]) for n in out_names):
+                continue
+            spare += appear.get(pid, 0.0) * st.exp_minutes()
+        target = pb.TEAM_MINUTES_AVG - spare - pb.CALLUP_ALLOWANCE
         minutes = pb.allocate(base, proj["p_play"].to_numpy(), pb.ALLOC_MODE,
-                              pb.ALLOC_STRENGTH, pb.ROSTER_MIN_SHARE * 200.0)
+                              pb.ALLOC_STRENGTH, target)
         # Ruled-out players: show their usual role, not a reallocated one.
         minutes = np.where(proj["p_play"].to_numpy() > 0, minutes, base)
         scale = np.divide(minutes, base, out=np.ones_like(base), where=base > 0)
@@ -237,6 +250,8 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
             proj[st] = proj[st] * scale
         proj["pra"] = proj["pts"] + proj["reb"] + proj["ast"]
         proj["team_pts"] = (team_pts or {}).get(side, np.nan)
+        proj["spare_min"] = spare
+        proj["target_min"] = target
         for st in PROP_STATS:
             if dist is not None:
                 proj[f"{st}_sd"] = [dist.sd(m, st, mn) for m, mn in zip(proj[st], minutes)]

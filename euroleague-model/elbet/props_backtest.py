@@ -29,7 +29,9 @@ from .props import (OPP_ADJUSTED, PROP_STATS, PlayerState, PropsModel, _context,
 
 ROTATION_MIN = 15.0
 
-# Live allocation settings, chosen with `replay` on 2015-24 and confirmed on 2025-27:
+# Live allocation settings, chosen with `replay` on 2015-24 and confirmed on 2025-27
+# (also tested and rejected: full / presence-weighted redistribution, faster minutes
+# averages, a season-wide roster, team-specific call-up allowances):
 # headroom at half strength cut minutes error 4.75 -> 4.69 (5.10 -> 4.83 with 2+
 # absences); full proportional redistribution and points scaling made things worse.
 ALLOC_MODE = "headroom"
@@ -38,7 +40,30 @@ SCALE_POINTS = False  # scaling to the team score made projections worse
 # Share of a team's minutes / points that its recent roster (players from the last 3
 # games) actually supplies; the rest goes to returning players, new signings and
 # overtime. Measured with `replay` (see shares()).
-ROSTER_MIN_SHARE = 0.985  # x 200 = 197 minutes
+ROSTER_MIN_SHARE = 0.985  # x 200 = 197 minutes (fixed target; live uses the pool target)
+CALLUP_ALLOWANCE = 6.0  # minutes per game to players with no track record (tuned)
+ROSTER_MODE = "recent"
+OUTSIDER_DECAY = 0.9  # memory of a team's minutes to players outside its group
+OUTSIDER_DEFAULT = 6.0
+PRESENCE_DECAY = 0.88  # same memory as the player minutes averages
+NO_ABSENCE_STRENGTH = 0.5
+
+
+def presence_strength(base: np.ndarray, p_out: np.ndarray, presence: np.ndarray) -> float:
+    """How much of the absent players' minutes still has to be handed out.
+
+    Teammates' minute averages already include games the absent players missed, so
+    a player out for weeks frees little new time, while one who just got hurt frees
+    almost all of it: weight each absentee's minutes by how present they were in
+    the team's recent games."""
+    w = np.asarray(p_out, float) * np.asarray(base, float)
+    if w.sum() <= 0:
+        return NO_ABSENCE_STRENGTH
+    return float((w * np.asarray(presence, float)).sum() / w.sum())
+
+
+TEAM_MINUTES_AVG = 201.3  # 200 + overtime, league average
+MIN_DECAY = None  # per-game decay of the minutes average (None = same as stats, 0.88)
 ROSTER_PTS_SHARE = 0.981
 
 
@@ -85,6 +110,8 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
     first_game: dict[tuple, int] = {}  # (team, season, pid) -> index of first appearance
     out = []
     team_rows = []
+    fast_min: dict[str, list[float]] = {}  # pid -> [decayed minutes, decayed games]
+    outsider: dict[str, list[float]] = {}  # team -> [decayed outsider minutes, decayed games]
     for gid, box in players.groupby("game_id", sort=False):
         season = int(box["season"].iloc[0])
         league = league_by_season.get(season) or next(iter(league_by_season.values()))
@@ -92,7 +119,10 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
             is_home = bool(tb["is_home"].iloc[0])
             pace_f, opp_f = ctx.get(gid, {}).get(is_home, (1.0, 1.0))
             hist = history[(team, season)]
-            roster = set().union(*hist[-cfg.recent_team_games:]) if hist else set()
+            if ROSTER_MODE == "season":  # everyone who has played for the team this season
+                roster = set().union(*hist) if hist else set()
+            else:  # players from the last few games only
+                roster = set().union(*hist[-cfg.recent_team_games:]) if hist else set()
             played_now = set(tb.loc[tb["min"] > 0, "player_id"])
             rows = []
             for pid in roster:
@@ -100,7 +130,9 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
                 if st is None or st.s_n <= 0:
                     continue
                 decay = cfg.season_decay if st.season != season else 1.0
-                base_min = st.exp_minutes()
+                fm = fast_min.get(pid)
+                base_min = (fm[0] / fm[1]) if (MIN_DECAY is not None and fm and fm[1] > 0) \
+                    else st.exp_minutes()
                 proj = {}
                 for s in PROP_STATS:
                     f = pace_f * (opp_f if s in OPP_ADJUSTED else 1.0)
@@ -113,22 +145,51 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
                 appear = (sum(pid in g for g in window) / len(window)) if window else 0.5
                 rotation = base_min >= ROTATION_MIN and any(pid in g for g in hist[-4:])
                 p_out = 1.0 if (rotation and pid not in played_now) else 0.0
+                wts = PRESENCE_DECAY ** np.arange(len(hist))[::-1]  # most recent game = 1
+                presence = float((wts * np.array([pid in g for g in hist])).sum() / wts.sum()) \
+                    if hist else 0.0
                 rows.append({"player_id": pid, "base_min": base_min, "appear": appear,
+                             "presence": presence,
                              "p_out": p_out, "prior_games": st.games, **proj})
             in_roster = tb["player_id"].isin([x["player_id"] for x in rows])
             team_rows.append({"game_id": gid, "season": season, "team": team,
                               "team_min": tb["min"].sum(), "team_pts": tb["pts"].sum(),
                               "roster_min": tb.loc[in_roster, "min"].sum(),
                               "roster_pts": tb.loc[in_roster, "pts"].sum()})
+            # Spare players: played for the team this season but not in its last few games.
+            pool_min = 0.0
+            for pid in (set().union(*hist) if hist else set()) - roster:
+                st = states.get(pid)
+                if st is None or st.s_n <= 0:
+                    continue
+                n = len(hist)
+                first = max(first_game.get((team, season, pid), n), n - 6)
+                window = hist[first:]
+                appear = (sum(pid in g for g in window) / len(window)) if window else 0.0
+                pool_min += appear * st.exp_minutes()
             if rows:
                 r = pd.DataFrame(rows)
                 r["p_play"] = r["appear"] * (1 - r["p_out"])
                 actual = tb.set_index("player_id")
                 pts_target = team_pts.get((gid, team))
                 var_out = {}
-                for name, (mode, strength, scale_pts) in variants.items():
+                for name, spec in variants.items():
+                    mode, strength, scale_pts = spec[:3]
+                    target = spec[3] if len(spec) > 3 else ROSTER_MIN_SHARE * 200.0
+                    if isinstance(target, str) and target == "team":
+                        o = outsider.get(team)
+                        allowance = (o[0] / o[1]) if (o and o[1] > 0) else OUTSIDER_DEFAULT
+                        target = TEAM_MINUTES_AVG - pool_min - allowance
+                    elif isinstance(target, str):  # "pool:<call-up allowance>"
+                        target = TEAM_MINUTES_AVG - pool_min - float(target.split(":")[1])
+                    if strength == "presence":
+                        strength_v = presence_strength(r["base_min"].to_numpy(),
+                                                       r["p_out"].to_numpy(),
+                                                       r["presence"].to_numpy())
+                    else:
+                        strength_v = strength
                     alloc = allocate(r["base_min"].to_numpy(), r["p_play"].to_numpy(),
-                                     mode, strength, ROSTER_MIN_SHARE * 200.0)
+                                     mode, strength_v, target)
                     scale = np.divide(alloc, r["base_min"], out=np.ones(len(r)),
                                       where=r["base_min"] > 0)
                     exp_pts = float((r["p_play"] * r["pts"] * scale).sum())
@@ -154,6 +215,13 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
                         rec[f"{name}_pra"] = (rec[f"{name}_pts"] + rec[f"{name}_reb"]
                                               + rec[f"{name}_ast"])
                     out.append(rec)
+            # Minutes this game by players outside the pre-game roster and spare pool
+            # (call-ups, returning players): a team-specific depth signal.
+            known = set().union(*hist) if hist else set()
+            outside = tb.loc[(tb["min"] > 0) & ~tb["player_id"].isin(known), "min"].sum()
+            o = outsider.setdefault(team, [0.0, 0.0])
+            o[0] = o[0] * OUTSIDER_DECAY + outside
+            o[1] = o[1] * OUTSIDER_DECAY + 1
             # update history and player states with this game's box score
             hist.append(played_now)
             for pid in played_now:
@@ -168,6 +236,14 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
             st.team, st.player = r.team, r.player
             if r.min <= 0:
                 continue
+            if MIN_DECAY is not None:
+                fm = fast_min.setdefault(r.player_id, [0.0, 0.0, r.season])
+                if fm[2] != r.season:  # new season: keep a little of last season's role
+                    fm[0] *= cfg.season_decay
+                    fm[1] *= cfg.season_decay
+                    fm[2] = r.season
+                fm[0] = fm[0] * MIN_DECAY + r.min
+                fm[1] = fm[1] * MIN_DECAY + 1
             st.decay(cfg.decay)
             st.s_min += r.min
             st.s_n += 1
