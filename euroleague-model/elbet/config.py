@@ -34,9 +34,9 @@ def season_code(year: int) -> str:
 class EloConfig:
     k: float = 20.0
     hfa: float = 65.0  # home-court edge in Elo points
-    carryover: float = 0.70  # fraction of rating kept between seasons
-    init: float = 1500.0
-    new_team: float = 1450.0
+    carryover: float = 0.75  # fraction of rating kept between seasons (538 setting)
+    init: float = 1505.0
+    new_team: float = 1505.0
 
 
 @dataclass

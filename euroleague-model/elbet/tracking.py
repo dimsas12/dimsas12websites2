@@ -42,18 +42,17 @@ def save_log(log: pd.DataFrame) -> None:
 
 
 def log_picks(picks: pd.DataFrame) -> int:
-    """Append new picks; a pick already logged for the same game/market/selection is kept
-    as first logged (the price you could actually have taken first)."""
+    """Append new picks; a game that already has a logged bet keeps it (the first price
+    you could actually have taken), so re-running `picks` never stacks bets on a game."""
     log = load_log()
     new = picks.copy()
     new["logged_at"] = pd.Timestamp.now(tz="UTC").tz_convert(None).floor("s")
     for c in LOG_COLUMNS:
         if c not in new:
             new[c] = np.nan
-    key = ["game_id", "market", "selection"]
+    # One bet per game across runs too: a game already in the log keeps its first bet.
     if not log.empty:
-        seen = set(map(tuple, log[key].astype(str).to_numpy()))
-        new = new[[tuple(r) not in seen for r in new[key].astype(str).to_numpy()]]
+        new = new[~new["game_id"].astype(str).isin(set(log["game_id"].astype(str)))]
     if new.empty:
         return 0
     log = pd.concat([log, new[LOG_COLUMNS]], ignore_index=True) if not log.empty \

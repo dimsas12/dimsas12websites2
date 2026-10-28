@@ -95,6 +95,7 @@ def parse_boxscore(game: pd.Series, box: dict) -> tuple[dict, list[dict]] | None
             for k, v in BOX_FIELDS.items():
                 if v in PLAYER_STATS:
                     row[v] = float(p.get(k) or 0)
+            row["pm"] = float(p.get("Plusminus") or 0)  # on-court point differential
             players.append(row)
     # Sanity check: box score order must match home/away points.
     if not (np.isclose(sides["home"]["pts"], game["home_pts"])

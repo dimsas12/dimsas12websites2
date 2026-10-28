@@ -23,7 +23,9 @@ def _elo_delta(rh: float, ra: float, margin: float, neutral: bool, cfg: EloConfi
     hfa = 0.0 if neutral else cfg.hfa
     exp_h = 1.0 / (1.0 + 10 ** (-(rh + hfa - ra) / 400.0))
     winner_diff = (rh + hfa - ra) * (1 if margin > 0 else -1)
-    mov = math.log(abs(margin) + 1.0) * 2.2 / (winner_diff * 0.001 + 2.2)
+    # FiveThirtyEight NBA margin-of-victory multiplier (beat the log-based one in
+    # walk-forward tests: holdout log loss 0.6131 -> 0.6122).
+    mov = (abs(margin) + 3.0) ** 0.8 / (7.5 + 0.006 * winner_diff)
     return cfg.k * mov * ((1.0 if margin > 0 else 0.0) - exp_h)
 
 

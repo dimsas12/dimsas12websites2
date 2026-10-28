@@ -35,6 +35,8 @@ COMMISSION = {"betfair_ex_eu": 0.05, "betfair_ex_uk": 0.05, "betfair_ex_au": 0.0
 EXCLUDED_BOOKS = {"onexbet", "gtbets", "betonlineag", "mybookieag", "everygame", "bovada",
                   "lowvig", "betus", "marathonbet"}
 
+SHARP_BOOKS = {"pinnacle", "betfair_ex_eu", "betfair_ex_uk", "matchbook"}
+
 MAX_OVERROUND = 1.15  # books charging more than this are treated as bad data
 
 _STOP = {"bc", "kk", "bk", "fc", "sk", "cb", "basket", "basketball", "club", "the",
@@ -242,11 +244,18 @@ def _best_and_fair(df: pd.DataFrame, col: str, sides: tuple[str, str], devig,
         i = d["price"].idxmax()
         res[s] = (float(d.at[i, "price"]), d.at[i, "book"])
     # Consensus no-vig probability: devig each book, then average.
-    fair = []
-    for _, b in df.groupby("book"):
+    # No-vig probability: from sharp books (Pinnacle, exchanges after commission) when
+    # they price this line, as the benchmark; otherwise the average over all books.
+    fair, sharp = [], []
+    for book, b in df.groupby("book"):
         prices = [b[b[col] == s]["price"].max() for s in sides]
         if all(pd.notna(prices)):
-            fair.append(devig(prices)[0])
-    res[f"fair_{sides[0]}"] = float(sum(fair) / len(fair)) if fair else None
+            p = devig(prices)[0]
+            fair.append(p)
+            if book in SHARP_BOOKS:
+                sharp.append(p)
+    use = sharp or fair
+    res[f"fair_{sides[0]}"] = float(sum(use) / len(use)) if use else None
+    res["fair_source"] = "sharp" if sharp else "consensus"
     res["n_books"] = len(fair)
     return res

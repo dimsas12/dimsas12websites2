@@ -27,6 +27,8 @@ class AvailabilityConfig:
     replacement: float = 0.6  # replacement level as a fraction of league PIR/min
     rotation_games: int = 4  # must have played in one of the team's last N games
     rotation_min: float = 15.0  # ...and average at least this many minutes (tuned)
+    pm_weight: float = 2.0  # weight of on-court +/- per minute in a player's value (tuned)
+    pm_prior_minutes: float = 150.0  # +/- is noisy: shrink it hard toward 0
 
 
 @dataclass
@@ -37,6 +39,7 @@ class _Player:
     s_min: float = 0.0
     s_pir: float = 0.0
     s_pts: float = 0.0
+    s_pm: float = 0.0
     s_n: float = 0.0
     last_team_game: int = -1  # index of the team's last game this player played in
 
@@ -59,7 +62,11 @@ class AvailabilityModel:
         den = p.s_min + cfg.prior_minutes
         rate = (p.s_pir + cfg.prior_minutes * self.league_rate) / den
         pts_rate = (p.s_pts + cfg.prior_minutes * self.league_pts_rate) / den
-        return (exp_min, exp_min * (rate - cfg.replacement * self.league_rate),
+        value = exp_min * (rate - cfg.replacement * self.league_rate)
+        if cfg.pm_weight:
+            pm_rate = p.s_pm / (p.s_min + cfg.pm_prior_minutes)  # shrunk +/- per minute
+            value += cfg.pm_weight * exp_min * pm_rate
+        return (exp_min, value,
                 exp_min * (pts_rate - cfg.replacement * self.league_pts_rate))
 
     def rotation(self, team: str, season: int) -> pd.DataFrame:
@@ -125,6 +132,7 @@ class AvailabilityModel:
                     p.s_min *= cfg.season_decay
                     p.s_pir *= cfg.season_decay
                     p.s_pts *= cfg.season_decay
+                    p.s_pm *= cfg.season_decay
                     p.s_n *= cfg.season_decay
                     p.season = g.season
                 p.team, p.name = team, r.player
@@ -133,6 +141,7 @@ class AvailabilityModel:
                 p.s_min = p.s_min * cfg.decay + r.min
                 p.s_pir = p.s_pir * cfg.decay + r.pir
                 p.s_pts = p.s_pts * cfg.decay + r.pts
+                p.s_pm = p.s_pm * cfg.decay + getattr(r, "pm", 0.0)
                 p.s_n = p.s_n * cfg.decay + 1
                 p.last_team_game = idx
             self.team_games[team] = idx + 1

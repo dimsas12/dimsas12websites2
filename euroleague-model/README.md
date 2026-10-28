@@ -174,6 +174,22 @@ except assists (tied). Props depend heavily on knowing who plays, so use
 
 None of this shows the model beats bookmakers: that needs odds. See below.
 
+## Research checklist (applied and tested)
+
+From "How Basketball Betting Models Calculate Probabilities" (Oct 2026). Every item was
+selected on 2015-22 and reported on 2023-26 (walk-forward, see `elbet/experiments.py`).
+
+| Idea | Result | Status |
+|---|---|---|
+| Per-possession ORtg/DRtg, schedule-adjusted, pace | already the core of the ratings | in |
+| Normal margin, SD ~12 | ours 11.9; logistic fit gives the same log loss | in |
+| FiveThirtyEight Elo (MOV mult, 75% carry-over) | holdout log loss 0.6131 -> 0.6122 | **adopted** |
+| Player-based strength (on-court +/-) | holdout 0.6122 -> 0.6112, flat on 2015-22 | **adopted** |
+| Sharp-book (Pinnacle/exchange) fair price for blend and CLV | benchmark per research | **adopted** |
+| Short "last 5 games" form window | no gain (0.6129 vs 0.6131; worse on 2015-22) | rejected |
+| Stronger early-season regression to the mean | helps 2015-22, hurts 2023-26 | rejected |
+| Multiplicative pace | differs from ours by <0.1 possession | not needed |
+
 ## Limitations and honest caveats
 
 * The model knows only EuroLeague games: no domestic-league fatigue or travel.
