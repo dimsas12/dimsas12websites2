@@ -10,7 +10,7 @@ import pandas as pd
 from . import config, dataset
 from .availability import AvailabilityModel
 from .config import SETTINGS, Settings
-from .features import build_features, set_availability
+from .features import build_features, set_availability, set_bottom_up
 from .models import GameModel, fair_spread, fair_total
 from .props import PROP_STATS, PropsModel, recent_roster
 
@@ -63,14 +63,17 @@ def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
     config.MODEL_DIR.mkdir(parents=True, exist_ok=True)
     AVAIL_MODEL_PATH.write_bytes(pickle.dumps(avail))
 
-    game_model = GameModel().fit(feats)
-    game_model.save(GAME_MODEL_PATH)
-
     props = PropsModel(settings.props)
     history = props.run(players, feats)
     props.fit_dispersion(history)
+    from .features import add_bottom_up
     from .props_backtest import fit_distribution
-    props.dist = fit_distribution(players, feats, props)
+    props.dist, team_rows = fit_distribution(players, feats, props)
+    feats = add_bottom_up(feats, team_rows)
+    feats.to_csv(FEATURES_PATH, index=False)
+
+    game_model = GameModel().fit(feats)
+    game_model.save(GAME_MODEL_PATH)
     from . import minutes
     people = load_people()
     mds = minutes.build_dataset(players, people=people)
@@ -151,6 +154,7 @@ def apply_absences(up: pd.DataFrame, injuries: pd.DataFrame | None = None,
     up = up.copy()
     extra = {n: 1.0 for n in (out_names or [])}
     if (injuries is None or injuries.empty) and not extra:
+        live_bottom_up(up, injuries, out_names)
         return up, pd.DataFrame()
     avail = load_availability()
     report = []
@@ -167,7 +171,41 @@ def apply_absences(up: pd.DataFrame, injuries: pd.DataFrame | None = None,
             if not miss.empty:
                 report.append(miss.assign(team=g[side], game_id=g["game_id"]))
     set_availability(up)
+    live_bottom_up(up, injuries, out_names)
     return up, (pd.concat(report, ignore_index=True) if report else pd.DataFrame())
+
+
+def live_bottom_up(up: pd.DataFrame, injuries: pd.DataFrame | None,
+                   out_names: list[str] | None) -> None:
+    """Bottom-up features for upcoming games, defined exactly as in training
+    (props_backtest.replay): recent roster, chance of playing = appearance rate x
+    (1 - P(out)), projections at usual minutes."""
+    from .props import appearance_rates
+
+    if not PROPS_MODEL_PATH.exists():
+        set_bottom_up(up)
+        return
+    props = load_props_model()
+    _, players = dataset.load_tables()
+    for i, g in up.iterrows():
+        named = game_absences(g, injuries, out_names)
+        season = int(g["season"])
+        pace_f = g["pace_exp"] / g["mu_pace"] if g["mu_pace"] else 1.0
+        for side, opp_def in (("home", g["def_away"]), ("away", g["def_home"])):
+            roster = recent_roster(players, g[side], season, props.cfg.recent_team_games)
+            proj = props.project(g[side], opp_def, g["mu_eff"], pace_f, season, roster)
+            if proj.empty:
+                continue
+            appear = appearance_rates(players, g[side], season)
+            p_out = np.zeros(len(proj))
+            for name, w in named[side].items():
+                hit = match_player(name, proj["player"])
+                if hit is not None:
+                    p_out = np.where(proj["player"].to_numpy() == hit, np.maximum(p_out, w), p_out)
+            p_play = proj["player_id"].map(appear).fillna(0.5).to_numpy() * (1 - p_out)
+            up.at[i, f"bu_{side}"] = float((p_play * proj["pts"]).sum())
+            up.at[i, f"bu_out_{side}"] = float(((1 - p_play) * proj["pts"] * (p_out > 0)).sum())
+    set_bottom_up(up)
 
 
 def questionable(up: pd.DataFrame) -> pd.DataFrame:

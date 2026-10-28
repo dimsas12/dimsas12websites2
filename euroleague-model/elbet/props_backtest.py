@@ -170,6 +170,12 @@ def replay(players: pd.DataFrame, feats: pd.DataFrame, team_pts: dict,
             if rows:
                 r = pd.DataFrame(rows)
                 r["p_play"] = r["appear"] * (1 - r["p_out"])
+                # Bottom-up team production from the players expected to play (pre-game).
+                team_rows[-1].update({
+                    "bottom_pts": float((r["p_play"] * r["pts"]).sum()),
+                    "bottom_pir_min": float((r["p_play"] * r["base_min"]).sum()),
+                    "bottom_out_pts": float(((1 - r["p_play"]) * r["pts"]
+                                             * (r["p_out"] > 0)).sum())})
                 actual = tb.set_index("player_id")
                 pts_target = team_pts.get((gid, team))
                 var_out = {}
@@ -309,7 +315,8 @@ def fit_distribution(players: pd.DataFrame, feats: pd.DataFrame, model: PropsMod
     """Replay history with the live allocation and fit the calibrated prop distribution."""
     from .props import PropDistribution
 
-    rep = replay(players, feats, {}, model)
-    rep = rep[rep["season"] < rep["season"].max()]  # current season stays out of the fit
-    return PropDistribution(fit_minutes_mixture(rep), fit_conditional_alpha(rep), RATE_SD,
+    rep_all = replay(players, feats, {}, model)
+    rep = rep_all[rep_all["season"] < rep_all["season"].max()]  # current season out of the fit
+    dist = PropDistribution(fit_minutes_mixture(rep), fit_conditional_alpha(rep), RATE_SD,
                             dict(model.alpha), dict(PROB_CALIBRATION))
+    return dist, rep_all.attrs["team"]

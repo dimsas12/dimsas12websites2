@@ -10,9 +10,9 @@ from .config import Settings
 from .ratings import efficiency_ratings, run_elo
 
 MARGIN_FEATURES = ["rating_margin", "elo_diff", "neutral", "short_rest_diff", "playoff",
-                   "avail_diff"]
+                   "avail_diff", "bu_margin", "bu_out_diff"]
 TOTAL_FEATURES = ["rating_total", "pace_exp", "playoff", "early_season", "scoring_trend",
-                  "missing_pts_total"]
+                  "missing_pts_total", "bu_total_dev", "bu_out_total"]
 
 
 def _rest_days(games: pd.DataFrame) -> pd.DataFrame:
@@ -92,6 +92,7 @@ def build_features(games: pd.DataFrame, settings: Settings, box: pd.DataFrame | 
                 "n_missing_home", "n_missing_away"):
         feats[col] = feats[col].fillna(0.0) if col in feats else 0.0
     set_availability(feats)
+    set_bottom_up(feats)
     feats["margin"] = feats["home_pts"] - feats["away_pts"]
     feats["total"] = feats["home_pts"] + feats["away_pts"]
     feats["home_win"] = (feats["margin"] > 0).astype(float).where(feats["played"])
@@ -105,3 +106,32 @@ def set_availability(feats: pd.DataFrame) -> None:
     feats["missing_total"] = feats["missing_home"] + feats["missing_away"]
     # Scoring lost to absences (points per game above replacement) drives the total.
     feats["missing_pts_total"] = feats["missing_pts_home"] + feats["missing_pts_away"]
+
+
+def add_bottom_up(feats: pd.DataFrame, team_rows: pd.DataFrame) -> pd.DataFrame:
+    """Bottom-up features from the players expected to play (see props_backtest.replay):
+    expected player points (chance of playing x projection) per team, and the points of
+    players ruled out. Walk-forward tests: holdout log loss 0.6112 -> 0.6109, margin MAE
+    9.018 -> 8.999, total MAE 13.279 -> 13.257, and better on 2015-22 too."""
+    feats = feats.drop(columns=[c for c in ("bu_home", "bu_away", "bu_out_home", "bu_out_away")
+                                if c in feats], errors="ignore")
+    t = team_rows[["game_id", "team", "bottom_pts", "bottom_out_pts"]]
+    feats = feats.merge(t.rename(columns={"team": "home", "bottom_pts": "bu_home",
+                                          "bottom_out_pts": "bu_out_home"}),
+                        on=["game_id", "home"], how="left")
+    feats = feats.merge(t.rename(columns={"team": "away", "bottom_pts": "bu_away",
+                                          "bottom_out_pts": "bu_out_away"}),
+                        on=["game_id", "away"], how="left")
+    set_bottom_up(feats)
+    return feats
+
+
+def set_bottom_up(feats: pd.DataFrame) -> None:
+    for c in ("bu_home", "bu_away", "bu_out_home", "bu_out_away"):
+        if c not in feats:
+            feats[c] = np.nan
+    feats["bu_margin"] = (feats["bu_home"] - feats["bu_away"]).fillna(0.0)
+    feats["bu_total_dev"] = (feats["bu_home"] + feats["bu_away"]
+                             - feats["rating_total"]).fillna(0.0)
+    feats["bu_out_diff"] = (feats["bu_out_away"] - feats["bu_out_home"]).fillna(0.0)
+    feats["bu_out_total"] = (feats["bu_out_away"] + feats["bu_out_home"]).fillna(0.0)

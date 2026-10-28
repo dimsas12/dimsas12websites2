@@ -199,6 +199,7 @@ selected on 2015-22 and reported on 2023-26 (walk-forward, see `elbet/experiment
 | FiveThirtyEight Elo (MOV mult, 75% carry-over) | holdout log loss 0.6131 -> 0.6122 | **adopted** |
 | Player-based strength (on-court +/-) | holdout 0.6122 -> 0.6112, flat on 2015-22 | **adopted** |
 | Sharp-book (Pinnacle/exchange) fair price for blend and CLV | benchmark per research | **adopted** |
+| Bottom-up team strength from expected players (chance of playing x projection) | better on both 2015-22 and 2023-26: holdout log loss 0.6112 -> 0.6109, margin MAE 9.018 -> 8.999, total MAE 13.279 -> 13.257 | **adopted** |
 | Short "last 5 games" form window | no gain (0.6129 vs 0.6131; worse on 2015-22) | rejected |
 | Stronger early-season regression to the mean | helps 2015-22, hurts 2023-26 | rejected |
 | Multiplicative pace | differs from ours by <0.1 possession | not needed |
