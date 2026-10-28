@@ -39,6 +39,8 @@ def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
     props = PropsModel(settings.props)
     history = props.run(players, feats)
     props.fit_dispersion(history)
+    from .props_backtest import fit_distribution
+    props.dist = fit_distribution(players, feats, props)
     history.to_csv(PROPS_HISTORY_PATH, index=False)
     PROPS_MODEL_PATH.write_bytes(pickle.dumps(props))
     return {"games": len(games), "played": int(games["played"].sum()),
@@ -191,19 +193,23 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
     """Prop projections for both teams of one game (game = a features row).
 
     absences: {"home": {name: P(out)}, "away": {...}} from the injury feed / --out.
-    team_pts: {"home": points, "away": points} predicted by the game model.
+    team_pts: {"home": points, "away": points} from the game model (reported only).
 
-    For each player: chance of playing = recent appearance rate x (1 - P(out)).
-    Minutes *if playing* are scaled so the team's expected minutes are exactly
-    200 (absent players' minutes go to the rest). Points (and threes) are then
-    scaled so expected player points add up to the team's predicted score.
-    Stats are conditional on playing, which is how bookmakers settle props.
+    Chance of playing = recent appearance rate x (1 - P(out)). Minutes if playing:
+    minutes freed by absences go mostly to players with room to play more, at half
+    strength, toward 197 expected minutes for the recent roster (the other ~2% go
+    to returning players / new signings). Both choices were picked by replaying
+    15 seasons (props_backtest.replay). Projections are conditional on playing,
+    which is how bookmakers settle props. Distributions include minutes and
+    per-minute-rate uncertainty (PropDistribution).
     """
-    from .props import allocate_minutes, appearance_rates, fair_line, nb_sd
+    from . import props_backtest as pb
+    from .props import appearance_rates
 
     absences = absences or {}
     season = int(game["season"])
     pace_f = game["pace_exp"] / game["mu_pace"]
+    dist = getattr(props, "dist", None)
     out = []
     for side, opp_def in (("home", game["def_away"]), ("away", game["def_home"])):
         team = game[side]
@@ -220,25 +226,25 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
         proj["p_out"] = p_out
         proj["p_play"] = proj["player_id"].map(appear).fillna(0.5) * (1 - p_out)
         base = proj["exp_min"].to_numpy()
-        minutes = allocate_minutes(base, proj["p_play"].to_numpy())
-        # Ruled-out players: show their usual role, not the teammates' scaled-up minutes.
+        minutes = pb.allocate(base, proj["p_play"].to_numpy(), pb.ALLOC_MODE,
+                              pb.ALLOC_STRENGTH, pb.ROSTER_MIN_SHARE * 200.0)
+        # Ruled-out players: show their usual role, not a reallocated one.
         minutes = np.where(proj["p_play"].to_numpy() > 0, minutes, base)
         scale = np.divide(minutes, base, out=np.ones_like(base), where=base > 0)
         proj["base_min"] = base
         proj["exp_min"] = minutes
         for st in PROP_STATS:
             proj[st] = proj[st] * scale
-        if team_pts and team_pts.get(side):
-            expected_pts = float((proj["p_play"] * proj["pts"]).sum())
-            k = team_pts[side] / expected_pts if expected_pts > 0 else 1.0
-            proj["pts"] *= k
-            proj["fgm3"] *= k
-            proj["pts_scale"] = k
         proj["pra"] = proj["pts"] + proj["reb"] + proj["ast"]
+        proj["team_pts"] = (team_pts or {}).get(side, np.nan)
         for st in PROP_STATS:
-            a = props.alpha[st]
-            proj[f"{st}_sd"] = [nb_sd(m, a) for m in proj[st]]
-            fl = [fair_line(m, a) for m in proj[st]]
+            if dist is not None:
+                proj[f"{st}_sd"] = [dist.sd(m, st, mn) for m, mn in zip(proj[st], minutes)]
+                fl = [dist.fair_line(m, st, mn) for m, mn in zip(proj[st], minutes)]
+            else:
+                from .props import fair_line, nb_sd
+                proj[f"{st}_sd"] = [nb_sd(m, props.alpha[st]) for m in proj[st]]
+                fl = [fair_line(m, props.alpha[st]) for m in proj[st]]
             proj[f"{st}_line"] = [x[0] for x in fl]
             proj[f"{st}_p_over"] = [x[1] for x in fl]
         proj["side"] = side
@@ -246,6 +252,15 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
     if not out:
         return pd.DataFrame()
     return pd.concat(out, ignore_index=True)
+
+
+def prop_probs(props: PropsModel, mean: float, stat: str, minutes: float, line: float):
+    """(P over, P push, P under) with the calibrated distribution when available."""
+    from .props import nb_probs
+
+    dist = getattr(props, "dist", None)
+    return dist.probs(mean, stat, minutes, line) if dist is not None \
+        else nb_probs(mean, props.alpha[stat], line)
 
 
 def game_absences(game: pd.Series, injuries: pd.DataFrame | None,

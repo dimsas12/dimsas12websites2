@@ -352,8 +352,11 @@ def _all_props(pred: pd.DataFrame, inj: pd.DataFrame, props_model) -> pd.DataFra
 def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
     _title(ws, "Player prop projections",
            "Projections are IF THE PLAYER PLAYS (how books settle props). Chance plays = recent "
-           "appearance rate x (1 - injury probability). Team check rows: expected minutes must "
-           "be 200 and expected points must equal the game model's team score.")
+           "appearance rate x (1 - injury probability). SD and P(over) include minutes and "
+           "shooting-rate uncertainty. Check rows: listed players normally cover ~194-197 of a "
+           "team's ~201 minutes, and less with many absences (history: ~180 with 4 out) because "
+           "call-ups and returning players without recent games take the rest; their points "
+           "are compared with the game model's score (forcing them equal tested worse).")
     stats = ["pts", "reb", "ast", "fgm3", "pra"]
     headers = ["Game", "Team", "Player", "Chance plays", "Minutes if plays", "Injury P(out)"]
     for st in stats:
@@ -382,9 +385,9 @@ def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
             r += 1
         last = r - 1
         # Consistency checks as live formulas.
-        _cell(ws, r, 3, f"{team} expected minutes (target 200)", bold=True)
+        _cell(ws, r, 3, f"{team} expected minutes of listed players", bold=True)
         _cell(ws, r, 5, f"=SUMPRODUCT(D{first}:D{last},E{first}:E{last})", "0.0", bold=True)
-        _cell(ws, r + 1, 3, f"{team} expected points vs model team score", bold=True)
+        _cell(ws, r + 1, 3, f"{team} model team score | listed players' points", bold=True)
         _cell(ws, r + 1, 5, round(float(d["team_pts"].iloc[0]), 1), "0.0", color=BLUE,
               bold=True)
         _cell(ws, r + 1, 7, f"=SUMPRODUCT(D{first}:D{last},G{first}:G{last})", "0.0", bold=True)
@@ -394,7 +397,7 @@ def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
 
 def _sheet_ladder(ws, allprops: pd.DataFrame, props_model) -> int:
     """Long table of P(over/under) for half-point lines around each projection."""
-    from .props import ladder_lines, nb_probs
+    from .props import ladder_lines
 
     _title(ws, "Prop over/under ladder",
            "Negative binomial probabilities if the player plays. Used by the Prop checker sheet.")
@@ -406,7 +409,7 @@ def _sheet_ladder(ws, allprops: pd.DataFrame, props_model) -> int:
         for st in ("pts", "reb", "ast", "fgm3", "pra"):
             mean = getattr(p, st)
             for line in ladder_lines(mean, st):
-                po, _, pu = nb_probs(mean, props_model.alpha[st], line)
+                po, _, pu = pipeline.prop_probs(props_model, mean, st, p.exp_min, line)
                 _cell(ws, r, 1, f"{p.player}|{st}|{line:g}")
                 _cell(ws, r, 2, p.game)
                 _cell(ws, r, 3, p.team)

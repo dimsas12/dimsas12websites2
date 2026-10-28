@@ -129,9 +129,15 @@ push probability and a tied margin is impossible (overtime).
 
 **Player props** (projections are *if the player plays*, as books settle them):
 each player gets a chance of playing (recent appearance rate × (1 − injury
-probability)); minutes if playing are scaled so the team's expected minutes are
-exactly 200 (max 40 each), and points are scaled so expected player points equal
-the game model's team score. Per player: expected minutes × per-minute rate (decayed averages of the
+probability)). Minutes freed by absences go mostly to players with room to play
+more ("headroom"), at half strength, toward 197 expected minutes for the recent
+roster. Replaying 2015-24 (and checking on 2025-27) this cut minutes error from
+4.75 to 4.69 overall and from 5.90 to 4.91 with 4+ absences; full redistribution
+to 200 and scaling points to the team score both tested *worse*, because call-ups
+and returning players take ~2-10% of minutes. Outcomes mix a negative binomial
+(given minutes) over historical minutes surprises and a 20% per-minute-rate
+uncertainty: held-out log loss 0.535 → 0.527, and "94%" lines now hit 88% instead
+of 85%. `elbet build` refits this every time. Per player: expected minutes × per-minute rate (decayed averages of the
 player's previous games, shrunk toward the league rate; little shrinkage for
 assists and threes, which are very player-specific) × pace factor ×
 opponent-defence factor. Negative binomial outcomes with dispersion fitted per

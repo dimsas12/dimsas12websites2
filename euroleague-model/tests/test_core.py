@@ -212,3 +212,20 @@ def test_overtime_mass_goes_to_small_margins():
     # Normal approximation without the tie: P(M > 6.5) = 52.9%; OT adds only a little.
     ph, _, _ = spread_probs(7.36, 11.89, -6.5)
     assert 0.529 < ph < 0.535
+
+
+def test_mixture_widens_distribution_and_keeps_probabilities_valid():
+    from elbet.props import mixture_probs, nb_probs
+    po, pp, pu = mixture_probs(12.0, 0.1, 11.5, [0.6, 0.9, 1.0, 1.1, 1.4], rate_sd=0.2)
+    assert po + pp + pu == pytest.approx(1.0)
+    # Minutes/rate uncertainty fattens the tails relative to the conditional NB.
+    assert mixture_probs(12.0, 0.1, 24.5, [0.6, 1.0, 1.4], 0.2)[0] > nb_probs(12.0, 0.1, 24.5)[0]
+
+
+def test_headroom_allocation_favours_bench():
+    from elbet.props_backtest import allocate
+    base = np.array([32.0, 28, 22, 18, 14, 10, 8])
+    p_play = np.array([1, 1, 0, 1, 1, 1, 1.0])  # the 22-minute player is out
+    m = allocate(base, p_play, "headroom", 1.0, 197.0)
+    gain = m - base
+    assert gain[5] > gain[0]  # a bench player gains more than the 32-minute starter

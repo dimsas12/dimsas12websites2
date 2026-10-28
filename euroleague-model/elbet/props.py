@@ -78,6 +78,7 @@ class PropsModel:
     alpha: dict = field(default_factory=dict)
     league: dict = field(default_factory=dict)
     states: dict = field(default_factory=dict)
+    dist: object = None  # PropDistribution, fitted by `elbet build`
 
     def run(self, players: pd.DataFrame, feats: pd.DataFrame) -> pd.DataFrame:
         """Walk through history producing a pre-game projection for every played appearance."""
@@ -249,3 +250,63 @@ def ladder_lines(mean: float, stat: str) -> list[float]:
     width = 6 if stat in ("pts", "pra") else 3
     base = math.floor(mean)
     return [L + 0.5 for L in range(max(0, base - width), base + width + 1)]
+
+
+RATE_Z = np.array([-1.2816, -0.5244, 0.0, 0.5244, 1.2816])  # 5 normal quantiles
+
+
+def mixture_probs(mean: float, alpha: float, line: float, ratios,
+                  rate_sd: float = 0.0) -> tuple[float, float, float]:
+    """(P over, P push, P under) for a stat whose minutes and per-minute rate are both
+    uncertain: NB(mean x r x k, alpha) averaged over minutes ratios r (actual /
+    projected minutes, from history) and rate multipliers k (lognormal, sd rate_sd).
+    `alpha` is the stat's dispersion *given* minutes."""
+    r = np.asarray(ratios, float)
+    k = np.exp(rate_sd * RATE_Z - rate_sd ** 2 / 2) if rate_sd > 0 else np.ones(1)
+    mu = np.maximum(mean * r[:, None] * k[None, :], 1e-3).ravel()
+    n = 1.0 / alpha
+    p = n / (n + mu)
+    if line == math.floor(line):
+        under = nbinom.cdf(int(line) - 1, n, p).mean()
+        push = nbinom.pmf(int(line), n, p).mean()
+    else:
+        under = nbinom.cdf(math.floor(line), n, p).mean()
+        push = 0.0
+    return float(1 - under - push), float(push), float(under)
+
+
+@dataclass
+class PropDistribution:
+    """Calibrated outcome model for props, fitted on historical replays
+    (`elbet build`). Falls back to the plain NB if not fitted."""
+    mix: dict = field(default_factory=dict)  # minutes bucket -> ratio quantiles
+    alpha_cond: dict = field(default_factory=dict)
+    rate_sd: float = 0.0
+    alpha_plain: dict = field(default_factory=dict)
+
+    def probs(self, mean: float, stat: str, minutes: float, line: float):
+        if not self.mix:
+            return nb_probs(mean, self.alpha_plain[stat], line)
+        from .props_backtest import minutes_bucket
+
+        ratios = self.mix.get(minutes_bucket(minutes)) or [1.0]
+        return mixture_probs(mean, self.alpha_cond[stat], line, ratios, self.rate_sd)
+
+    def sd(self, mean: float, stat: str, minutes: float) -> float:
+        if not self.mix:
+            return nb_sd(mean, self.alpha_plain[stat])
+        from .props_backtest import minutes_bucket
+
+        r = np.asarray(self.mix.get(minutes_bucket(minutes)) or [1.0])
+        k2 = np.exp(self.rate_sd ** 2)  # E[k^2] for the mean-one lognormal
+        mu = mean * r
+        a = self.alpha_cond[stat]
+        second = (mu + a * mu ** 2 * k2 + mu ** 2 * k2).mean()  # E[X^2]
+        return float(np.sqrt(max(second - mean ** 2, 0.0)))
+
+    def fair_line(self, mean: float, stat: str, minutes: float) -> tuple[float, float]:
+        base = math.floor(mean)
+        cands = [L + 0.5 for L in range(max(0, base - 6), base + 7)]
+        probs = [self.probs(mean, stat, minutes, L)[0] for L in cands]
+        i = int(np.argmin([abs(p - 0.5) for p in probs]))
+        return cands[i], probs[i]

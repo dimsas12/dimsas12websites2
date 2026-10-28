@@ -393,8 +393,10 @@ def cmd_props(args):
         if who is None or ln.stat not in PROP_STATS:
             print(f"skip: {ln.player} {ln.stat} (no projection)")
             continue
-        mean = float(proj.loc[proj["player"] == who, ln.stat].iloc[0])  # if the player plays
-        po, pp, pu = nb_probs(mean, props.alpha[ln.stat], float(ln.line))
+        row = proj.loc[proj["player"] == who].iloc[0]
+        mean = float(row[ln.stat])  # if the player plays
+        po, pp, pu = pipeline.prop_probs(props, mean, ln.stat, float(row["exp_min"]),
+                                         float(ln.line))
         for side, p, price in (("over", po, getattr(ln, "over_odds", np.nan)),
                                ("under", pu, getattr(ln, "under_odds", np.nan))):
             ev_ = betting.expected_value(p, price, pp) if pd.notna(price) else np.nan
