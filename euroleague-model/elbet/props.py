@@ -283,6 +283,7 @@ class PropDistribution:
     alpha_cond: dict = field(default_factory=dict)
     rate_sd: float = 0.0
     alpha_plain: dict = field(default_factory=dict)
+    cal: dict = field(default_factory=dict)  # stat -> (a, b): logit recalibration of P(over)
 
     def probs(self, mean: float, stat: str, minutes: float, line: float):
         if not self.mix:
@@ -290,7 +291,15 @@ class PropDistribution:
         from .props_backtest import minutes_bucket
 
         ratios = self.mix.get(minutes_bucket(minutes)) or [1.0]
-        return mixture_probs(mean, self.alpha_cond[stat], line, ratios, self.rate_sd)
+        po, pp, pu = mixture_probs(mean, self.alpha_cond[stat], line, ratios, self.rate_sd)
+        ab = (getattr(self, "cal", None) or {}).get(stat)
+        if ab and po > 0 and pu > 0:
+            # P(over | no push) through the fitted logit curve, push probability unchanged
+            q = po / (po + pu)
+            z = math.log(q / (1 - q))
+            q = 1 / (1 + math.exp(-(ab[0] + ab[1] * z)))
+            po, pu = q * (1 - pp), (1 - q) * (1 - pp)
+        return po, pp, pu
 
     def sd(self, mean: float, stat: str, minutes: float) -> float:
         if not self.mix:

@@ -351,8 +351,14 @@ def _project_game_props(game_row: pd.DataFrame, inj, extra_out, players, props):
     up, _ = pipeline.apply_absences(game_row, inj, extra_out)
     game = pipeline.predict_games(up, model).iloc[0]
     absences = pipeline.game_absences(game, inj, extra_out)
+    learned = None
+    if pipeline.MINUTES_MODEL_PATH.exists():
+        g1 = game.to_frame().T
+        learned = pipeline.predict_minutes(
+            g1, players, pipeline.absences_by_pid(g1, players, inj, extra_out))
     proj = pipeline.game_props(game, players, props, absences,
-                               {"home": game["pred_home_pts"], "away": game["pred_away_pts"]})
+                               {"home": game["pred_home_pts"], "away": game["pred_away_pts"]},
+                               learned)
     return proj, game
 
 

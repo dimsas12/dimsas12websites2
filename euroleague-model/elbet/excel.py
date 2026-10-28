@@ -53,9 +53,9 @@ def _header(ws, row: int, headers: list[str], widths: list[int] | None = None) -
             ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def _cell(ws, row, col, value, fmt=None, color="000000", bold=False, fill=None):
+def _cell(ws, row, col, value, fmt=None, color="000000", bold=False, fill=None, italic=False):
     c = ws.cell(row=row, column=col, value=value)
-    c.font = _f(bold=bold, color=color)
+    c.font = _f(bold=bold, color=color, italic=italic)
     c.border = BOX
     if fmt:
         c.number_format = fmt
@@ -336,11 +336,16 @@ STAT_NAMES = {"pts": "PTS", "reb": "REB", "ast": "AST", "fgm3": "3PM", "pra": "P
 
 def _all_props(pred: pd.DataFrame, inj: pd.DataFrame, props_model) -> pd.DataFrame:
     _, players = dataset.load_tables()
+    learned = None
+    if pipeline.MINUTES_MODEL_PATH.exists():
+        learned = pipeline.predict_minutes(pred, players,
+                                           pipeline.absences_by_pid(pred, players, inj))
     out = []
     for _, g in pred.iterrows():
         absences = pipeline.game_absences(g, inj)
         proj = pipeline.game_props(g, players, props_model, absences,
-                                   {"home": g["pred_home_pts"], "away": g["pred_away_pts"]})
+                                   {"home": g["pred_home_pts"], "away": g["pred_away_pts"]},
+                                   learned)
         if not proj.empty:
             proj["game"] = f"{g['home']}-{g['away']}"
             proj["team_pts"] = np.where(proj["side"] == "home", g["pred_home_pts"],
@@ -391,11 +396,18 @@ def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
         # Consistency checks as live formulas.
         _cell(ws, r, 3, f"{team} expected minutes of listed players", bold=True)
         _cell(ws, r, 5, f"=SUMPRODUCT(D{first}:D{last},E{first}:E{last})", "0.0", bold=True)
-        _cell(ws, r + 1, 3, f"{team} model team score | listed players' points", bold=True)
-        _cell(ws, r + 1, 5, round(float(d["team_pts"].iloc[0]), 1), "0.0", color=BLUE,
+        _cell(ws, r + 1, 3, "+ players outside the recent rotation", italic=True)
+        _cell(ws, r + 1, 5, f"=MAX(0,201.3-E{r})", "0.0")
+        ws.cell(row=r + 1, column=7, value=(
+            "call-ups / returning players; history: ~3 min with no absences, 8 with two out, "
+            "11 with three, 17 with four")).font = _f(italic=True, color="595959")
+        _cell(ws, r + 2, 3, f"{team} team total (200 + overtime avg)", bold=True)
+        _cell(ws, r + 2, 5, f"=E{r}+E{r + 1}", "0.0", bold=True)
+        _cell(ws, r + 3, 3, f"{team} model team score | listed players' points", bold=True)
+        _cell(ws, r + 3, 5, round(float(d["team_pts"].iloc[0]), 1), "0.0", color=BLUE,
               bold=True)
-        _cell(ws, r + 1, 7, f"=SUMPRODUCT(D{first}:D{last},G{first}:G{last})", "0.0", bold=True)
-        r += 2
+        _cell(ws, r + 3, 7, f"=SUMPRODUCT(D{first}:D{last},G{first}:G{last})", "0.0", bold=True)
+        r += 4
         # Players ruled out: listed for reference only, no projections, not in the totals.
         for p in ruled_out.sort_values("base_min", ascending=False).itertuples(index=False):
             for col, v in ((1, game), (2, team), (3, p.player),

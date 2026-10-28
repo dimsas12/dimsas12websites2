@@ -19,6 +19,36 @@ GAME_MODEL_PATH = config.MODEL_DIR / "game_model.pkl"
 PROPS_MODEL_PATH = config.MODEL_DIR / "props_model.pkl"
 PROPS_HISTORY_PATH = config.PROCESSED_DIR / "props_history.csv"
 AVAIL_MODEL_PATH = config.MODEL_DIR / "availability.pkl"
+MINUTES_MODEL_PATH = config.MODEL_DIR / "minutes_gbm.pkl"
+PLAY_MODEL_PATH = config.MODEL_DIR / "play_clf.pkl"
+PEOPLE_PATH = config.PROCESSED_DIR / "people.csv"
+
+
+def load_people() -> pd.DataFrame:
+    """Season rosters with positions (fetched by `elbet fetch`)."""
+    return pd.read_csv(PEOPLE_PATH) if PEOPLE_PATH.exists() else pd.DataFrame()
+
+
+def predict_minutes(games: pd.DataFrame, players: pd.DataFrame,
+                    absences: dict[tuple, dict[str, float]]) -> pd.DataFrame:
+    """Learned minutes (if playing) for every recent-roster player of the given upcoming
+    games, in one pass over history. absences: {(game_id, team): {player_id: P(out)}}."""
+    from . import minutes
+
+    model = pickle.loads(MINUTES_MODEL_PATH.read_bytes())
+    up = []
+    for g in games.itertuples(index=False):
+        up += [(g.game_id, g.home, int(g.season), True), (g.game_id, g.away, int(g.season), False)]
+    ds = minutes.build_dataset(players, absences, up, load_people())
+    ds = ds[ds["played"].isna()].copy()
+    ds["pred_min"] = np.clip(model.predict(ds[minutes.FEATURES]), 0, 40)
+    ds["played_last"] = (ds["last1"] > 0).astype(float)
+    if PLAY_MODEL_PATH.exists():
+        clf = pickle.loads(PLAY_MODEL_PATH.read_bytes())
+        ds["p_appear"] = clf.predict_proba(ds[minutes.PLAY_FEATURES])[:, 1]
+    else:
+        ds["p_appear"] = ds["appear"]
+    return ds
 
 
 def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
@@ -41,6 +71,11 @@ def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
     props.fit_dispersion(history)
     from .props_backtest import fit_distribution
     props.dist = fit_distribution(players, feats, props)
+    from . import minutes
+    people = load_people()
+    mds = minutes.build_dataset(players, people=people)
+    MINUTES_MODEL_PATH.write_bytes(pickle.dumps(minutes.train(mds)))
+    PLAY_MODEL_PATH.write_bytes(pickle.dumps(minutes.train_play(mds)))
     history.to_csv(PROPS_HISTORY_PATH, index=False)
     PROPS_MODEL_PATH.write_bytes(pickle.dumps(props))
     return {"games": len(games), "played": int(games["played"].sum()),
@@ -189,7 +224,8 @@ def power_ratings(feats: pd.DataFrame, settings: Settings = SETTINGS) -> pd.Data
 
 def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
                absences: dict[str, dict[str, float]] | None = None,
-               team_pts: dict[str, float] | None = None) -> pd.DataFrame:
+               team_pts: dict[str, float] | None = None,
+               learned_minutes: pd.DataFrame | None = None) -> pd.DataFrame:
     """Prop projections for both teams of one game (game = a features row).
 
     absences: {"home": {name: P(out)}, "away": {...}} from the injury feed / --out.
@@ -239,8 +275,23 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
                 continue
             spare += appear.get(pid, 0.0) * st.exp_minutes()
         target = pb.TEAM_MINUTES_AVG - spare - pb.CALLUP_ALLOWANCE
-        minutes = pb.allocate(base, proj["p_play"].to_numpy(), pb.ALLOC_MODE,
-                              pb.ALLOC_STRENGTH, target)
+        lm = None
+        if learned_minutes is not None and not learned_minutes.empty:
+            lm = learned_minutes[(learned_minutes["game_id"] == game["game_id"])
+                                 & (learned_minutes["team"] == team)]
+        if lm is not None and not lm.empty:
+            # Learned model (MAE 4.41 vs 4.50 for the rule on 2023-26 player-games).
+            pm = dict(zip(lm["player_id"], lm["pred_min"]))
+            minutes = np.array([pm.get(pid, b) for pid, b in zip(proj["player_id"], base)])
+            # Learned chance of playing (log loss 0.174 vs 0.294 for the appearance rate).
+            pa = dict(zip(lm["player_id"], lm["p_appear"]))
+            proj["p_play"] = [pa.get(pid, a) * (1 - po) for pid, a, po in
+                              zip(proj["player_id"], proj["p_play"] / (1 - proj["p_out"]).clip(
+                                  lower=1e-9), proj["p_out"])]
+            proj.loc[proj["p_out"] >= 1, "p_play"] = 0.0
+        else:
+            minutes = pb.allocate(base, proj["p_play"].to_numpy(), pb.ALLOC_MODE,
+                                  pb.ALLOC_STRENGTH, target)
         # Ruled-out players: show their usual role, not a reallocated one.
         minutes = np.where(proj["p_play"].to_numpy() > 0, minutes, base)
         scale = np.divide(minutes, base, out=np.ones_like(base), where=base > 0)
@@ -252,6 +303,10 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
         proj["team_pts"] = (team_pts or {}).get(side, np.nan)
         proj["spare_min"] = spare
         proj["target_min"] = target
+        # Minutes the listed players leave to everyone else (history: 3 with no
+        # absences up to ~17 with four rotation players out).
+        proj["outsider_min"] = max(0.0, pb.TEAM_MINUTES_AVG
+                                   - float((proj["p_play"] * minutes).sum()))
         for st in PROP_STATS:
             if dist is not None:
                 proj[f"{st}_sd"] = [dist.sd(m, st, mn) for m, mn in zip(proj[st], minutes)]
@@ -292,3 +347,22 @@ def game_absences(game: pd.Series, injuries: pd.DataFrame | None,
         d.update({n: 1.0 for n in (extra_out or [])})
         res[side] = d
     return res
+
+
+def absences_by_pid(games: pd.DataFrame, players: pd.DataFrame, injuries: pd.DataFrame | None,
+                    extra_out: list[str] | None = None) -> dict[tuple, dict[str, float]]:
+    """{(game_id, team): {player_id: P(out)}} matched against each team's recent roster."""
+    out = {}
+    for _, g in games.iterrows():
+        named = game_absences(g, injuries, extra_out)
+        for side in ("home", "away"):
+            team = g[side]
+            t = players[(players["team"] == team) & (players["season"] == int(g["season"]))]
+            names = t.drop_duplicates("player_id").set_index("player")["player_id"]
+            d = {}
+            for name, w in named[side].items():
+                hit = match_player(name, list(names.index))
+                if hit is not None:
+                    d[names[hit]] = max(w, d.get(names[hit], 0.0))
+            out[(g["game_id"], team)] = d
+    return out

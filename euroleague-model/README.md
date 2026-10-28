@@ -127,6 +127,19 @@ seasons only. Outcomes are normal with the residual SD (≈12 points for margin,
 ≈17 for total), discretised to whole points so whole-number lines get a correct
 push probability and a tied margin is impossible (overtime).
 
+**Minutes model** (`elbet/minutes.py`): two gradient-boosted models trained on
+every roster player in every game since 2013 using only pre-game information:
+minutes if playing, and the chance of playing. Key features: usual and very recent
+minutes, minutes in recent games *where the same teammates were missing*, minutes
+freed by tonight's absences (overall and at the player's position, from the
+EuroLeague season rosters), and whether those absences are new. Held-out 2023-26:
+minutes error 4.50 → 4.42 (5.34 → 4.55 with 3+ absences), play-probability log
+loss 0.294 → 0.174, and expected team minutes match reality (198.0 vs 197.4 with no
+absences, 188.6 vs 191.4 with three). The remaining minutes are shown as "players
+outside the recent rotation", so every team adds up to ~201 (200 + overtime).
+Tested and rejected: forcing listed players to 200, a usage boost to per-minute
+rates when teammates are out, recency-weighted training.
+
 **Player props** (projections are *if the player plays*, as books settle them):
 each player gets a chance of playing (recent appearance rate × (1 − injury
 probability)). Minutes freed by absences go mostly to players with room to play

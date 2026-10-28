@@ -296,6 +296,12 @@ def fit_conditional_alpha(rep: pd.DataFrame, prefix: str = "alloc_",
     return out
 
 
+# Logit recalibration of P(over) per stat (a + b * logit p), fitted on 2013-22 player-
+# games with learned minutes; held-out 2023-26 log loss 0.5264 -> 0.5244 and the
+# 45-55% band now hits 50.9% instead of 52.8%.
+PROB_CALIBRATION = {"pts": (0.070, 0.831), "reb": (0.010, 0.977), "ast": (0.067, 0.979),
+                    "fgm3": (0.031, 0.913), "pra": (0.097, 0.868)}
+
 RATE_SD = 0.20  # per-minute rate uncertainty (lognormal sd), tuned on 2015-24
 
 
@@ -306,4 +312,4 @@ def fit_distribution(players: pd.DataFrame, feats: pd.DataFrame, model: PropsMod
     rep = replay(players, feats, {}, model)
     rep = rep[rep["season"] < rep["season"].max()]  # current season stays out of the fit
     return PropDistribution(fit_minutes_mixture(rep), fit_conditional_alpha(rep), RATE_SD,
-                            dict(model.alpha))
+                            dict(model.alpha), dict(PROB_CALIBRATION))

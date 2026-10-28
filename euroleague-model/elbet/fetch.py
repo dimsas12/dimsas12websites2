@@ -71,10 +71,46 @@ def fetch_boxscore(season: int, game_code: int, session: requests.Session) -> di
     return box
 
 
+PEOPLE_URL = "https://api-live.euroleague.net/v2/competitions/{comp}/seasons/{season}/people"
+
+
+def fetch_people(seasons: list[int], session: requests.Session, refresh_current: bool = True):
+    """Season rosters with positions and heights -> data/processed/people.csv."""
+    import pandas as pd
+
+    current = config.current_season()
+    rows = []
+    for season in seasons:
+        path = config.RAW_DIR / "people" / f"{config.season_code(season)}.json"
+        if path.exists() and not (refresh_current and season >= current):
+            data = json.loads(path.read_text())
+        else:
+            resp = session.get(PEOPLE_URL.format(comp=config.COMPETITION,
+                                                 season=config.season_code(season)),
+                               params={"personType": "J"}, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            data = data.get("data", data) if isinstance(data, dict) else data
+            _write_json(path, data)
+        for p in data:
+            rows.append({"season": season, "player_id": "P" + p["person"]["code"],
+                         "player": p["person"]["name"], "team": (p.get("club") or {}).get("code"),
+                         "position": p.get("position"), "position_name": p.get("positionName"),
+                         "height": p["person"].get("height"), "active": p.get("active")})
+    config.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    out = config.PROCESSED_DIR / "people.csv"
+    new = pd.DataFrame(rows)
+    if out.exists():  # keep seasons not fetched this time
+        old = pd.read_csv(out)
+        new = pd.concat([old[~old["season"].isin(seasons)], new], ignore_index=True)
+    new.to_csv(out, index=False)
+
+
 def fetch_seasons(seasons: list[int], workers: int = 6, refresh_current: bool = True) -> None:
     """Fetch schedules for every season and box scores for every played game."""
     session = _session()
     current = config.current_season()
+    fetch_people(seasons, session, refresh_current)
     for season in seasons:
         refresh = refresh_current and season >= current
         if not refresh and not schedule_path(season).exists():
