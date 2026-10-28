@@ -21,6 +21,9 @@ PROPS_HISTORY_PATH = config.PROCESSED_DIR / "props_history.csv"
 
 def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
     games, players = dataset.build_tables(seasons)
+    # Drop fixtures that were never played (e.g. the cancelled end of 2019-20).
+    cutoff = pd.Timestamp.now(tz="UTC").tz_convert(None) - pd.Timedelta(days=2)
+    games = games[games["played"] | (games["date"] > cutoff)].reset_index(drop=True)
     dataset.save_tables(games, players)
     feats = build_features(games, settings)
     feats.to_csv(FEATURES_PATH, index=False)

@@ -41,8 +41,8 @@ class EloConfig:
 
 @dataclass
 class RatingConfig:
-    half_life_days: float = 70.0  # recency decay of past games
-    prev_season_weight: float = 0.5  # extra discount for last season's games (roster churn)
+    half_life_days: float = 250.0  # recency decay of past games (tuned on 2014-17)
+    prev_season_weight: float = 1.0  # extra discount for last season's games
     window_days: int = 420
     ridge_team: float = 6.0  # shrinkage of team ratings toward league average
     ridge_pace: float = 6.0
@@ -53,7 +53,10 @@ class RatingConfig:
 class PropsConfig:
     decay: float = 0.88  # per-game decay of a player's history
     season_decay: float = 0.4  # extra decay applied across a season break
-    prior_minutes: float = 40.0  # shrink per-minute rates toward the league rate
+    # Minutes of league-average play mixed into each per-minute rate (shrinkage).
+    # Assists and threes are very player-specific, so they get little shrinkage.
+    prior_minutes: dict = field(default_factory=lambda: {
+        "pts": 20.0, "reb": 20.0, "ast": 3.0, "fgm3": 3.0, "pra": 20.0})
     recent_team_games: int = 3  # player must have played in one of the team's last N games
 
 

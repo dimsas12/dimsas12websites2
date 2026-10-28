@@ -79,8 +79,8 @@ tries anyway and tells you if nothing comes back.
 * *Adjusted efficiency*: for every game day, a recency-weighted ridge
   regression on the last ~14 months of games fits each team's offensive and
   defensive rating (points per 100 possessions, adjusted for opponent and home
-  court) and pace. Half-life 70 days; last season's games count half
-  (roster churn). Possessions = FGA + 0.44·FTA − OREB + TOV.
+  court) and pace. Half-life 250 days (tuned on 2014-17 and checked on
+  later seasons). Possessions = FGA + 0.44·FTA − OREB + TOV.
 * *Elo* with a margin-of-victory multiplier, 70% carry-over between seasons.
 
 **Game model**: projected margin and total start from the efficiency
@@ -92,7 +92,8 @@ seasons only. Outcomes are normal with the residual SD (≈12 points for margin,
 push probability and a tied margin is impossible (overtime).
 
 **Player props**: expected minutes × per-minute rate (decayed averages of the
-player's previous games, shrunk toward the league rate) × pace factor ×
+player's previous games, shrunk toward the league rate; little shrinkage for
+assists and threes, which are very player-specific) × pace factor ×
 opponent-defence factor. Negative binomial outcomes with dispersion fitted per
 stat. Minutes of players you `--exclude` are given to the rest of the roster.
 

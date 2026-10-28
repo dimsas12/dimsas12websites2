@@ -22,7 +22,7 @@ from scipy.stats import nbinom
 from .config import PropsConfig
 
 PROP_STATS = ["pts", "reb", "ast", "fgm3", "pra"]
-OPP_ADJUSTED = {"pts", "fgm3", "pra"}
+OPP_ADJUSTED = {"pts", "pra"}
 
 
 @dataclass
@@ -108,7 +108,7 @@ class PropsModel:
                        "prior_games": st.games}
                 for s in PROP_STATS:
                     f = pace_f * (opp_f if s in OPP_ADJUSTED else 1.0)
-                    row[f"proj_{s}"] = exp_min * st.rate(s, league[s], cfg.prior_minutes) * f
+                    row[f"proj_{s}"] = exp_min * st.rate(s, league[s], cfg.prior_minutes[s]) * f
                     row[s] = getattr(r, s)
                     row[f"naive_{s}"] = st.s_stat[s] / st.s_n
                 rows.append(row)
@@ -145,8 +145,8 @@ class PropsModel:
             for s in PROP_STATS:
                 f = pace_f * (opp_f if s in OPP_ADJUSTED else 1.0)
                 stat_sum = st.s_stat[s] * decay
-                rate = (stat_sum + self.cfg.prior_minutes * league[s]) / (
-                    st.s_min * decay + self.cfg.prior_minutes)
+                prior = self.cfg.prior_minutes[s]
+                rate = (stat_sum + prior * league[s]) / (st.s_min * decay + prior)
                 row[s] = exp_min * rate * f
             rows.append(row)
         return pd.DataFrame(rows).sort_values("exp_min", ascending=False)
