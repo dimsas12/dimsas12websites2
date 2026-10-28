@@ -646,6 +646,58 @@ function sChecklist(t, a, b, s) {
   });
 }
 
+// --- boot: a cold-open "archive" boot-up that hands over to the clip with a flash
+function sBoot(t, a, b, s) {
+  const c0 = cue(s, a, 0, .2), c1 = cue(s, a, 1, 1.6);
+  ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H); ctx.restore();
+  // scan lines
+  ctx.save(); ctx.globalAlpha = .08; ctx.fillStyle = '#fff';
+  for (let y = (t * 120) % 8; y < H; y += 8) ctx.fillRect(0, y, W, 2);
+  ctx.restore();
+  const tag = tx(s.kicker);
+  text(tag.slice(0, Math.max(0, Math.floor((t - a) / .03))), W / 2, 400, 32, { weight: 800, color: C.blue, spacing: 6 });
+  // logo assembles out of glitch slices
+  const lk = p(t, a + .1, a + .9, easeOutExpo), jit = 1 - lk;
+  ctx.save();
+  if (jit > .02) {
+    const f = Math.floor(t * 30);
+    for (let i = 0; i < 6; i++) {
+      ctx.save(); ctx.beginPath(); const y0 = 560 + i * 70; ctx.rect(0, y0, W, 70); ctx.clip();
+      ctx.translate((rnd(f * 3 + i) - .5) * 300 * jit, 0);
+      logo(W / 2, 780, 360, 1, 1, lk);
+      ctx.restore();
+    }
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .5 * jit;
+    ctx.translate(18 * jit, 0); logo(W / 2, 780, 360, 1, 1, 0);
+  } else logo(W / 2, 780, 360, 1, 1, 1);
+  ctx.restore();
+  // "last night's call" with RGB split on entry
+  const hk = p(t, c0 + .3, c0 + .6, easeOutExpo);
+  if (hk > 0) {
+    const g = (1 - hk) * 30;
+    [['rgba(255,40,80,.7)', -g], ['rgba(10,132,255,.9)', g], [C.white, 0]].forEach(([col, dx]) => {
+      ctx.save(); if (dx) ctx.globalCompositeOperation = 'lighter';
+      text(tx(s.line1), W / 2 + dx, 1170, 120, { italic: true, color: col, alpha: clamp(hk * 2) });
+      text(tx(s.line2), W / 2 - dx, 1300, 120, { italic: true, color: col === C.white ? C.blue : col, alpha: clamp(hk * 2) });
+      ctx.restore();
+    });
+  }
+  // scrambling score
+  const sk = p(t, c0 + .6, c0 + .9, easeBack);
+  if (sk > 0) {
+    ctx.save(); ctx.translate(W / 2, 1490); ctx.scale(sk, sk);
+    rrect(-300, -80, 600, 160, 30); ctx.fillStyle = 'rgba(10,132,255,.12)'; ctx.fill();
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 3; ctx.stroke();
+    const f = Math.floor(t * 24), d = i => String(Math.floor(rnd(f * 5 + i) * 10));
+    ctx.font = `800 96px "JetBrains Mono", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = C.white; ctx.fillText(t > c1 ? '??? – ??' : d(0) + d(1) + d(2) + ' – ' + d(3) + d(4), 0, 6);
+    ctx.restore();
+  }
+  // white flash into the clip
+  const fl = p(t, b - .18, b);
+  if (fl > 0) { ctx.save(); ctx.fillStyle = `rgba(255,255,255,${fl})`; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+}
+
 // --- versus: diagonal split panels
 function sVersus(t, a, b, s) {
   const c1 = wordT(s, a, (tx(D.away.short || D.away) || 'x').toLowerCase().slice(0, 4), 1.1);
@@ -920,12 +972,13 @@ function sOutro(t, a, b, s) {
   if (s.disclaimer !== false) text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
 }
 
-const SCENES = { called: sCalled, quarters: sQuarters, checklist: sChecklist, gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
+const SCENES = { boot: sBoot, called: sCalled, quarters: sQuarters, checklist: sChecklist, gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
 // moments that get camera shake + flash + an impact sound
 const IMPACTS = {
   teaser: (s, a) => [cue(s, a, 1, 1.4) + .32, cue(s, a, 2, 2.2) + .15],
   gauge: (s, a) => [cue(s, a, 1, 1.8) + .5],
   called: (s, a) => [cue(s, a, 1, 1.8) + .3],
+  boot: (s, a) => [a + .7],   // the logo landing; nothing over the voice
   quarters: (s, a) => [cue(s, a, (s.cues || [0, 0]).length - 1, 2.6) + .2],
   checklist: (s, a) => s.items.map((_, i) => cue(s, a, i + 1, .9 + i * .8) + .45),   // after the first word, so names stay clear
   margins: (s, a) => [cue(s, a, 1, 1.6) + .22],

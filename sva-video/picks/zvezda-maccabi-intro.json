@@ -1,0 +1,21 @@
+{
+  "competition": "",
+  "home": {
+    "en": "ZVEZDA"
+  },
+  "away": {
+    "en": "MACCABI"
+  },
+  "scenes": [
+    {
+      "type": "boot",
+      "dur": 3.2,
+      "lead": 1.0,
+      "tail": 0.6,
+      "voice": "Remember last night's call? Let's run it back.",
+      "kicker": "SVA // ANALYSIS ARCHIVE",
+      "line1": "LAST NIGHT'S",
+      "line2": "CALL"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SVA Laptop Shot</title>
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+<script src="assets/vendor/three.min.js"></script>
+<script src="assets/vendor/GLTFLoader.js"></script>
+</head>
+<body>
+<script>
+// "Phone filming a laptop" shot: a MacBook on a marble desk with a video
+// playing on its screen. Driven frame by frame by laptop.js:
+//   setup(opts) -> render(t, frameUrl)
+const W = 1080, H = 1920;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07080b);
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.01, 100);
+
+// ---------- seeded noise for the marble ----------
+function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y) { let v = 0, amp = .5; for (let i = 0; i < 6; i++) { v += amp * vnoise(x, y); x *= 2.03; y *= 2.03; amp *= .5; } return v; }
+function marbleTexture(size, palette) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'), img = g.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const nx = x / size * 4, ny = y / size * 4;
+    const turb = fbm(nx * 1.3, ny * 1.3);
+    const vein = Math.pow(1 - Math.abs(Math.sin((nx * 1.6 + ny * 2.4 + turb * 6.5))), 26) * .8;
+    const fine = Math.pow(1 - Math.abs(Math.sin((nx * 5 - ny * 3 + fbm(nx * 4, ny * 4) * 9))), 30) * .5;
+    const cloud = fbm(nx * .8 + 10, ny * .8);
+    const k = Math.min(1, vein + fine * .7);
+    const i = (y * size + x) * 4;
+    for (let ch = 0; ch < 3; ch++) {
+      const base = palette.base[ch] * (.75 + .5 * cloud);
+      img.data[i + ch] = base + (palette.vein[ch] - base) * k;
+    }
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  g.filter = 'blur(1.2px)'; g.drawImage(c, 0, 0); g.filter = 'none';   // soften the veins
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
+  return tex;
+}
+
+// ---------- screen texture: the clip, fitted to the 16:10 panel ----------
+const SCR_W = 1600, SCR_H = 1040;
+const scrCanvas = document.createElement('canvas'); scrCanvas.width = SCR_W; scrCanvas.height = SCR_H;
+const sctx = scrCanvas.getContext('2d');
+const screenTex = new THREE.CanvasTexture(scrCanvas);
+screenTex.encoding = THREE.sRGBEncoding;
+screenTex.anisotropy = 8;
+let screenMesh = null, glow = null, laptop = null;
+
+function paintScreen(img, power) {
+  sctx.fillStyle = '#000'; sctx.fillRect(0, 0, SCR_W, SCR_H);
+  if (img && power > 0) {
+    // vertical video in a landscape player: blurred, dimmed fill behind a sharp centre
+    sctx.save();
+    sctx.filter = 'blur(40px) brightness(0.45)';
+    const fw = SCR_W * 1.2, fh = fw * img.height / img.width;
+    sctx.drawImage(img, (SCR_W - fw) / 2, (SCR_H - fh) / 2, fw, fh);
+    sctx.restore();
+    const h = SCR_H, w = h * img.width / img.height;
+    sctx.drawImage(img, (SCR_W - w) / 2, 0, w, h);
+  }
+  if (power < 1) { sctx.fillStyle = `rgba(0,0,0,${1 - power})`; sctx.fillRect(0, 0, SCR_W, SCR_H); }
+  screenTex.needsUpdate = true;
+}
+
+function planarUv(mesh) {
+  const g = mesh.geometry; g.computeBoundingBox();
+  const bb = g.boundingBox, pos = g.attributes.position;
+  const w = bb.max.x - bb.min.x, h = bb.max.y - bb.min.y;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) { uv[i * 2] = (pos.getX(i) - bb.min.x) / w; uv[i * 2 + 1] = (pos.getY(i) - bb.min.y) / h; }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+}
+
+let OPTS = {};
+window.setup = async (opts) => {
+  OPTS = opts;
+  // desk + wall
+  // one big marble desk fills the whole background (the phone looks down at it)
+  const mtex = marbleTexture(1024, { base: [36, 54, 52], vein: [140, 122, 88] });
+  mtex.wrapS = mtex.wrapT = THREE.MirroredRepeatWrapping; mtex.repeat.set(3, 3);
+  const desk = new THREE.Mesh(new THREE.PlaneGeometry(6, 6),
+    new THREE.MeshStandardMaterial({ map: mtex, roughness: .3, metalness: .05 }));
+  desk.rotation.x = -Math.PI / 2;
+  scene.add(desk);
+  scene.add(new THREE.HemisphereLight(0xc8d6e5, 0x1a1a1a, .95));
+  const key = new THREE.DirectionalLight(0xfff1dc, 1.6); key.position.set(-1.2, 2.2, 1.4); scene.add(key);
+  const rim = new THREE.DirectionalLight(0x9fb8ff, .35); rim.position.set(1.5, 1, -1); scene.add(rim);
+  glow = new THREE.PointLight(0x4da8ff, 0, .5, 2); scene.add(glow);
+
+  const gltf = await new Promise((res, rej) => new THREE.GLTFLoader().load('assets/models/macbook.glb', res, undefined, rej));
+  laptop = gltf.scene;
+  const box = new THREE.Box3().setFromObject(laptop), sz = box.getSize(new THREE.Vector3());
+  const s = 0.31 / Math.max(sz.x, sz.z);          // ~31 cm wide, like a 14" MacBook
+  laptop.scale.setScalar(s);
+  box.setFromObject(laptop);
+  laptop.position.set(-box.getCenter(new THREE.Vector3()).x, -box.min.y, -box.getCenter(new THREE.Vector3()).z);
+  laptop.traverse(o => {
+    if (o.isMesh && o.name.replace(/\.\d+$/, '') === 'display') {
+      planarUv(o);
+      o.material = new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false });
+      screenMesh = o;
+    }
+  });
+  scene.add(laptop);
+  laptop.updateMatrixWorld(true);
+  // light from the screen spills onto the keyboard
+  const sb = new THREE.Box3().setFromObject(screenMesh), sc = sb.getCenter(new THREE.Vector3());
+  glow.position.set(sc.x, sc.y + .02, sc.z + .2);
+  window.SCREEN_CENTER = sc;
+  window.SCREEN_SIZE = sb.getSize(new THREE.Vector3());
+  paintScreen(null, 0);
+  return { center: sc.toArray(), size: window.SCREEN_SIZE.toArray() };
+};
+
+function loadImage(url) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; }); }
+const ease = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+function smoothNoise(t, seed) { return Math.sin(t * 1.3 + seed) * .5 + Math.sin(t * 2.7 + seed * 2.1) * .3 + Math.sin(t * 5.1 + seed * 3.7) * .2; }
+
+window.render = async (t, frameUrl) => {
+  const img = frameUrl ? await loadImage(frameUrl) : null;
+  const power = clamp(t / .35);                     // screen wakes up
+  paintScreen(img, power);
+  if (img) {   // average screen colour tints the light it throws
+    const d = sctx.getImageData(SCR_W / 2, SCR_H / 2, 1, 1).data;
+    glow.color.setRGB(d[0] / 255 * .6 + .2, d[1] / 255 * .6 + .2, d[2] / 255 * .6 + .4);
+    glow.intensity = .18 * power;
+  }
+  // camera: starts tight on the screen, pulls back to the desk shot as the clip starts
+  const sc = window.SCREEN_CENTER;
+  const pull = ease(clamp((t - OPTS.pullStart) / OPTS.pullDur));
+  const close = new THREE.Vector3(sc.x, sc.y + .005, sc.z + .27);
+  const wide = new THREE.Vector3(0, sc.y + .4, sc.z + .53);
+  const pos = close.clone().lerp(wide, pull);
+  // handheld phone: small, slow drift + micro jitter
+  const hh = .0035 + .002 * pull;
+  pos.x += smoothNoise(t, 1) * hh; pos.y += smoothNoise(t, 7) * hh; pos.z += smoothNoise(t, 13) * hh * .6;
+  camera.position.copy(pos);
+  const look = new THREE.Vector3(sc.x, sc.y - .03 * pull, sc.z + .02 * pull);
+  look.x += smoothNoise(t * 1.4, 21) * .002; look.y += smoothNoise(t * 1.4, 33) * .002;
+  camera.lookAt(look);
+  camera.rotation.z += smoothNoise(t * .8, 41) * .006;
+  camera.fov = 50 - 4 * (1 - pull);
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+};
+</script>
+</body>
+</html>
