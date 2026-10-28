@@ -25,6 +25,16 @@ PROP_MARKETS = "player_points,player_rebounds,player_assists,player_threes," \
 PROP_STAT = {"player_points": "pts", "player_rebounds": "reb", "player_assists": "ast",
              "player_threes": "fgm3", "player_points_rebounds_assists": "pra"}
 
+# Exchange commission on net winnings; prices are converted to what you actually
+# receive: effective odds = 1 + (odds - 1) * (1 - commission).
+COMMISSION = {"betfair_ex_eu": 0.05, "betfair_ex_uk": 0.05, "betfair_ex_au": 0.05,
+              "matchbook": 0.02, "smarkets": 0.02}
+
+# Offshore / unlicensed books in most European countries: they still count toward
+# the consensus (fair) price, but are never used as the "best price" for a bet.
+EXCLUDED_BOOKS = {"onexbet", "gtbets", "betonlineag", "mybookieag", "everygame", "bovada",
+                  "lowvig", "betus", "marathonbet"}
+
 MAX_OVERROUND = 1.15  # books charging more than this are treated as bad data
 
 _STOP = {"bc", "kk", "bk", "fc", "sk", "cb", "basket", "basketball", "club", "the",
@@ -103,10 +113,22 @@ def flatten(events: list[dict]) -> pd.DataFrame:
                         "event_id": ev["id"], "commence": pd.Timestamp(ev["commence_time"]),
                         "home_team": ev["home_team"], "away_team": ev["away_team"],
                         "book": bk["key"], "market": mk["key"], "name": oc["name"],
-                        "description": oc.get("description"), "price": float(oc["price"]),
-                        "point": oc.get("point"),
+                        "description": oc.get("description"),
+                        "price": net_price(float(oc["price"]), bk["key"]),
+                        "price_quoted": float(oc["price"]), "point": oc.get("point"),
                     })
     return pd.DataFrame(rows)
+
+
+def net_price(price: float, book: str) -> float:
+    c = COMMISSION.get(book, 0.0)
+    return round(1.0 + (price - 1.0) * (1.0 - c), 4)
+
+
+def usable_books(books, only: set[str] | None = None) -> set[str]:
+    """Books whose prices may be taken: `only` if given, else all minus EXCLUDED_BOOKS."""
+    books = set(books)
+    return books & only if only else books - EXCLUDED_BOOKS
 
 
 def _norm(name: str) -> str:
@@ -153,8 +175,12 @@ def match_events(events: pd.DataFrame, games: pd.DataFrame, max_hours: float = 3
     return out
 
 
-def market_lines(rows: pd.DataFrame) -> dict:
+def market_lines(rows: pd.DataFrame, allowed: set[str] | None = None) -> dict:
     """Summarise one event's odds into consensus line + best price per outcome.
+
+    The consensus line and no-vig probability use every sane book (sharper and
+    more stable); the best price comes only from `allowed` books (default: all
+    but EXCLUDED_BOOKS), after exchange commission.
 
     Returns {"h2h": {"home": (price, book), "away": ..., "fair_home": p},
              "spreads": {"line": home_line, "home": ..., "away": ..., "fair_home": p},
@@ -169,7 +195,7 @@ def market_lines(rows: pd.DataFrame) -> dict:
     h2h = rows[rows["market"] == "h2h"]
     if not h2h.empty:
         h2h = h2h.assign(side=h2h["name"].map(side))
-        out["h2h"] = _best_and_fair(h2h, "side", ("home", "away"), devig)
+        out["h2h"] = _best_and_fair(h2h, "side", ("home", "away"), devig, allowed)
 
     sp = rows[rows["market"] == "spreads"].copy()
     if not sp.empty:
@@ -178,16 +204,18 @@ def market_lines(rows: pd.DataFrame) -> dict:
                                    axis=1)
         line = sp["home_line"].mode().iloc[0]
         at = sp[sp["home_line"] == line]
-        out["spreads"] = {"line": float(line), **_best_and_fair(at, "side", ("home", "away"),
-                                                                  devig)}
+        res = _best_and_fair(at, "side", ("home", "away"), devig, allowed)
+        if res:
+            out["spreads"] = {"line": float(line), **res}
 
     tot = rows[rows["market"] == "totals"].copy()
     if not tot.empty:
         tot["side"] = tot["name"].str.lower()
         line = tot["point"].mode().iloc[0]
         at = tot[tot["point"] == line]
-        out["totals"] = {"line": float(line), **_best_and_fair(at, "side", ("over", "under"),
-                                                                 devig)}
+        res = _best_and_fair(at, "side", ("over", "under"), devig, allowed)
+        if res:
+            out["totals"] = {"line": float(line), **res}
     return out
 
 
@@ -202,11 +230,13 @@ def _sane_books(df: pd.DataFrame, col: str, sides: tuple[str, str]) -> pd.DataFr
     return df[df["book"].isin(keep)]
 
 
-def _best_and_fair(df: pd.DataFrame, col: str, sides: tuple[str, str], devig) -> dict:
+def _best_and_fair(df: pd.DataFrame, col: str, sides: tuple[str, str], devig,
+                   allowed: set[str] | None = None) -> dict:
     df = _sane_books(df, col, sides)
+    ok = usable_books(df["book"].unique(), allowed)
     res = {}
     for s in sides:
-        d = df[df[col] == s]
+        d = df[(df[col] == s) & df["book"].isin(ok)]
         if d.empty:
             return {}
         i = d["price"].idxmax()

@@ -172,9 +172,80 @@ def nb_median(mean: float, alpha: float) -> float:
     return float(nbinom.median(n, n / (n + mean)))
 
 
+def appearance_rates(players: pd.DataFrame, team: str, season: int,
+                     window: int = 6) -> dict[str, float]:
+    """Share of the team's last `window` games each player appeared in, counting only
+    games since their first appearance for the team (so new signings aren't penalised)."""
+    t = players[(players["team"] == team) & (players["season"] == season)]
+    games = t["game_id"].drop_duplicates().tolist()[-window:]
+    if not games:
+        return {}
+    idx = {g: i for i, g in enumerate(games)}
+    played = t[t["min"] > 0]
+    out = {}
+    first_ever = played.groupby("player_id")["game_id"].first()
+    all_games = t["game_id"].drop_duplicates().tolist()
+    pos = {g: i for i, g in enumerate(all_games)}
+    start = len(all_games) - len(games)
+    for pid, d in played[played["game_id"].isin(idx)].groupby("player_id"):
+        first = max(pos[first_ever[pid]], start)
+        eligible = len(all_games) - first
+        out[pid] = min(1.0, d["game_id"].nunique() / max(1, eligible))
+    return out
+
+
 def recent_roster(players: pd.DataFrame, team: str, season: int, n_games: int) -> list[str]:
     p = players[(players["team"] == team) & (players["season"] == season) & (players["min"] > 0)]
     if p.empty:
         return []
     recent = p["game_id"].drop_duplicates().iloc[-n_games:]
     return p[p["game_id"].isin(recent)]["player_id"].drop_duplicates().tolist()
+
+
+# ---------------------------------------------------------------- team allocation
+
+TEAM_MINUTES = 200.0
+MAX_MINUTES = 40.0
+
+
+def allocate_minutes(base_min: np.ndarray, p_play: np.ndarray, total: float = TEAM_MINUTES,
+                     cap: float = MAX_MINUTES) -> np.ndarray:
+    """Minutes each player gets *if they play*, so the team's expected minutes
+    sum(p_play * minutes) equal `total`: everyone is scaled by one factor (capped
+    at `cap` minutes), which hands absent players' minutes to the rest in
+    proportion to their usual role."""
+    base_min = np.asarray(base_min, float)
+    p_play = np.asarray(p_play, float)
+    if base_min.sum() <= 0:
+        return base_min
+
+    def expected(s: float) -> float:
+        return float((p_play * np.minimum(cap, base_min * s)).sum())
+
+    lo, hi = 0.2, 6.0
+    if expected(hi) < total:  # roster too thin to fill 200 even at the cap
+        return np.minimum(cap, base_min * hi)
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if expected(mid) < total else (lo, mid)
+    return np.minimum(cap, base_min * hi)
+
+
+def nb_sd(mean: float, alpha: float) -> float:
+    return float(np.sqrt(mean + alpha * mean ** 2))
+
+
+def fair_line(mean: float, alpha: float) -> tuple[float, float]:
+    """Half-point line whose over probability is closest to 50%, and that probability."""
+    base = math.floor(mean)
+    cands = [L + 0.5 for L in range(max(0, base - 6), base + 7)]
+    probs = [nb_probs(mean, alpha, L)[0] for L in cands]
+    i = int(np.argmin([abs(p - 0.5) for p in probs]))
+    return cands[i], probs[i]
+
+
+def ladder_lines(mean: float, stat: str) -> list[float]:
+    """Half-point lines around the projection, for the over/under ladder."""
+    width = 6 if stat in ("pts", "pra") else 3
+    base = math.floor(mean)
+    return [L + 0.5 for L in range(max(0, base - width), base + width + 1)]

@@ -15,7 +15,7 @@ from . import (backtest, betting, config, dataset, fetch, injuries, odds, pipeli
                tracking)
 from .config import SETTINGS
 from .models import GameModel, spread_probs, total_probs
-from .props import PROP_STATS, nb_median, nb_probs
+from .props import PROP_STATS, nb_probs
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_columns", 30)
@@ -141,11 +141,18 @@ def _blend(p_model: float, p_market: float | None, w: float) -> float:
     return (1 - w) * p_model + w * p_market
 
 
-def _event_lines(flat: pd.DataFrame, event_id: str, swapped: bool) -> dict:
+def _allowed(args) -> set[str] | None:
+    """Books you can bet with (`--bookmakers`); None = all except offshore books."""
+    b = getattr(args, "bookmakers", None)
+    return {x.strip() for x in b.split(",") if x.strip()} if b else None
+
+
+def _event_lines(flat: pd.DataFrame, event_id: str, swapped: bool,
+                 allowed: set[str] | None = None) -> dict:
     ev = flat[flat["event_id"] == event_id]
     if swapped:  # Odds API lists the teams the other way round
         ev = ev.assign(home_team=ev["away_team"].iloc[0], away_team=ev["home_team"].iloc[0])
-    return odds.market_lines(ev)
+    return odds.market_lines(ev, allowed)
 
 
 def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
@@ -156,9 +163,10 @@ def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
     if unmatched:
         print(f"warning: {unmatched} Odds API events could not be matched to the schedule")
     w = args.market_weight
+    allowed = _allowed(args)
     rows = []
     for event_id, (gid, swapped) in matches.items():
-        m = _event_lines(flat, event_id, swapped)
+        m = _event_lines(flat, event_id, swapped, allowed)
         g = pred.loc[gid]
         cands = []
         if m.get("h2h"):
@@ -208,12 +216,18 @@ def cmd_picks(args):
     if pred.empty:
         print("all games in the window have started")
         return
-    events, quota = odds.fetch_odds(regions=args.regions, bookmakers=args.bookmakers)
+    events, quota = odds.fetch_odds(regions=args.regions)
     print(f"Odds API: {len(events)} events, credits remaining {quota['x-requests-remaining']}")
     flat = odds.flatten(events)
     if flat.empty:
         print("no odds returned")
         return
+    # Only events inside the requested window (others are other days' games).
+    last = pred["date"].max() + pd.Timedelta(hours=2)
+    flat = flat[flat["commence"].dt.tz_convert(None) <= last]
+    allowed = odds.usable_books(flat["book"].unique(), _allowed(args))
+    print(f"best prices from {len(allowed)} books: {', '.join(sorted(allowed))} "
+          "(exchange prices net of commission)")
     board = build_board(pred, flat, args)
     if board.empty:
         print("no markets matched")
@@ -270,7 +284,7 @@ def cmd_closing(args):
         if b["game_id"] not in matches:
             print(f"{b['game']}: not on the odds board any more")
             continue
-        lines = _event_lines(flat, *matches[b["game_id"]])
+        lines = _event_lines(flat, *matches[b["game_id"]], _allowed(args))
         res = tracking.closing_prob(b, lines, model.margin_sd, model.total_sd)
         if res is None:
             continue
@@ -331,6 +345,17 @@ def cmd_injuries(args):
           .fillna("").to_string(index=False))
 
 
+def _project_game_props(game_row: pd.DataFrame, inj, extra_out, players, props):
+    """Injury-adjusted game prediction + team-consistent prop projections for one game."""
+    model = GameModel.load(pipeline.GAME_MODEL_PATH)
+    up, _ = pipeline.apply_absences(game_row, inj, extra_out)
+    game = pipeline.predict_games(up, model).iloc[0]
+    absences = pipeline.game_absences(game, inj, extra_out)
+    proj = pipeline.game_props(game, players, props, absences,
+                               {"home": game["pred_home_pts"], "away": game["pred_away_pts"]})
+    return proj, game
+
+
 def cmd_props(args):
     feats = pipeline.load_features().set_index("game_id")
     if args.game not in feats.index:
@@ -338,27 +363,22 @@ def cmd_props(args):
         print(f"unknown game {args.game}. Upcoming games:")
         print(up[["game_id", "date", "home", "away"]].to_string(index=False))
         return
-    game = feats.loc[args.game]
+    game_row = feats.loc[[args.game]].reset_index()
     _, players = dataset.load_tables()
     props = pipeline.load_props_model()
-    exclude = set(args.exclude or [])
-    if not args.no_injuries:
-        inj = injuries.load_injuries()
-        if not inj.empty:
-            exclude |= set(inj.loc[inj["weight"] >= 0.75, "player"])
-            doubt = inj[(inj["weight"] > 0) & (inj["weight"] < 0.75)]
-            if not doubt.empty:
-                print("questionable (not excluded):", ", ".join(doubt["player"]))
-    proj = pipeline.game_props(game, players, props, exclude)
+    inj = None if args.no_injuries else injuries.load_injuries()
+    proj, game = _project_game_props(game_row, inj, args.exclude, players, props)
     if proj.empty:
         print("no player history for these teams yet")
         return
     print(f"{game['home']} vs {game['away']}  ({game['date']:%a %d %b %H:%M})  "
-          f"expected pace {game['pace_exp']:.1f}")
-    show = proj[["team", "player", "exp_min", *PROP_STATS]].copy()
+          f"predicted {game['pred_home_pts']:.1f}-{game['pred_away_pts']:.1f}, "
+          f"pace {game['pace_exp']:.1f}")
+    show = proj[["team", "player", "p_play", "exp_min"]].copy()
     for s in PROP_STATS:
-        show[f"{s}_med"] = [nb_median(m, props.alpha[s]) for m in proj[s]]
-    print(show.round(1).to_string(index=False))
+        show[s] = proj[s]
+        show[f"{s}_line"] = proj[f"{s}_line"]
+    print(show.round(2).to_string(index=False))
 
     lines = None
     if args.lines:
@@ -373,7 +393,7 @@ def cmd_props(args):
         if who is None or ln.stat not in PROP_STATS:
             print(f"skip: {ln.player} {ln.stat} (no projection)")
             continue
-        mean = float(proj.loc[proj["player"] == who, ln.stat].iloc[0])
+        mean = float(proj.loc[proj["player"] == who, ln.stat].iloc[0])  # if the player plays
         po, pp, pu = nb_probs(mean, props.alpha[ln.stat], float(ln.line))
         for side, p, price in (("over", po, getattr(ln, "over_odds", np.nan)),
                                ("under", pu, getattr(ln, "under_odds", np.nan))):
@@ -523,7 +543,9 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--min-edge", type=float, default=None, help="minimum EV, e.g. 0.03")
     sp.add_argument("--market-weight", type=float, default=0.0,
                     help="blend model with no-vig market probability (0 = pure model)")
-    sp.add_argument("--bookmakers", help="comma-separated Odds API bookmaker keys")
+    sp.add_argument("--bookmakers",
+                    help="only take prices from these Odds API bookmaker keys, e.g. "
+                         "pinnacle,williamhill,betsson (default: all but offshore books)")
     sp.add_argument("--all-markets", action="store_true",
                     help="allow several bets on the same game (default: best EV only)")
     sp.add_argument("--no-log", action="store_true", help="don't record picks in the bet log")
@@ -535,6 +557,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--window", type=float, default=120,
                     help="capture bets whose game starts within this many minutes")
     sp.add_argument("--regions", default="eu")
+    sp.add_argument("--bookmakers", help="same as for picks")
     sp.set_defaults(func=cmd_closing)
 
     sp = sub.add_parser("track", help="settle logged bets; profit and CLV report")

@@ -112,10 +112,24 @@ class GameModel:
 
 # ---------------------------------------------------------------- market probabilities
 
+OT_SD = 5.0  # spread of final margins in games decided in overtime
+
+
 def _margin_pmf(mu: float, sd: float) -> tuple[np.ndarray, np.ndarray]:
+    """Final-margin distribution. A regulation tie (margin 0) goes to overtime, and
+    overtime games end close, so that mass is moved to small margins (|k| <= ~12),
+    split by an overtime win chance pulled halfway toward 50%. Spreading it over
+    all margins instead would overstate covers of big spreads."""
     k = np.arange(-90, 91)
     p = norm.cdf(k + 0.5, mu, sd) - norm.cdf(k - 0.5, mu, sd)
+    p_tie = p[k == 0].sum()
     p[k == 0] = 0.0
+    p_reg_home = p[k > 0].sum() / p.sum()
+    ot_home = 0.5 + 0.5 * (p_reg_home - 0.5)
+    shape = np.where(k != 0, norm.pdf(k, 0, OT_SD), 0.0)
+    pos = np.where(k > 0, shape, 0.0)
+    neg = np.where(k < 0, shape, 0.0)
+    p = p + p_tie * (ot_home * pos / pos.sum() + (1 - ot_home) * neg / neg.sum())
     return k, p / p.sum()
 
 

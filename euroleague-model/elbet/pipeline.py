@@ -65,18 +65,43 @@ def load_availability() -> AvailabilityModel:
     return pickle.loads(AVAIL_MODEL_PATH.read_bytes())
 
 
-def match_player(name: str, candidates: pd.Series) -> str | None:
-    """Match 'Sasha Vezenkov' / 'VEZENKOV, SASHA' / 'Vezenkov' to one of `candidates`."""
+_SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
+
+
+def _name_parts(name: str) -> tuple[set[str], set[str]]:
+    """(surname tokens, first-name tokens) for 'LAST, FIRST' or 'First Last' spellings."""
     from .odds import _norm
 
-    toks = {t for t in _norm(name).split() if len(t) > 1}
-    best, score = None, 0.0
+    def toks(x: str) -> list[str]:
+        return [t for t in _norm(x).split() if t not in _SUFFIXES]
+
+    if "," in name:
+        last, first = name.split(",", 1)
+        return set(toks(last)), set(toks(first))
+    t = toks(name)
+    if not t:
+        return set(), set()
+    return {t[-1]}, set(t[:-1])
+
+
+def match_player(name: str, candidates) -> str | None:
+    """Match a player name in any spelling ('Sasha Vezenkov', 'VEZENKOV, SASHA',
+    'Vezenkov') to one of `candidates`. The surname must match; first names only
+    break ties. Call it with one team's roster so a shared surname or first name
+    on another team can never match ("Gabriel Lundberg" is not "GABRIEL, WENYEN")."""
+    q_last, q_first = _name_parts(name)
+    if not q_last:
+        return None
+    best, best_score = None, -1.0
     for c in candidates:
-        ctoks = set(_norm(c).split())
-        s = len(toks & ctoks) / max(1, len(toks))
-        if s > score:
-            best, score = c, s
-    return best if score >= 0.5 else None
+        c_last, c_first = _name_parts(c)
+        c_all = c_last | c_first
+        if not q_last <= c_all:
+            continue
+        score = 2.0 * (q_last <= c_last) + len(q_first & c_all)
+        if score > best_score:
+            best, best_score = c, score
+    return best
 
 
 def apply_absences(up: pd.DataFrame, injuries: pd.DataFrame | None = None,
@@ -98,8 +123,10 @@ def apply_absences(up: pd.DataFrame, injuries: pd.DataFrame | None = None,
             if injuries is not None and not injuries.empty:
                 absent.update(absences_for_team(injuries, g[f"{side}_names"]))
             absent.update(extra)
-            value, miss = avail.missing_for(g[side], int(g["season"]), absent, match_player)
+            value, pts_value, miss = avail.missing_for(g[side], int(g["season"]), absent,
+                                                       match_player)
             up.at[i, f"missing_{side}"] = value
+            up.at[i, f"missing_pts_{side}"] = pts_value
             if not miss.empty:
                 report.append(miss.assign(team=g[side], game_id=g["game_id"]))
     set_availability(up)
@@ -159,24 +186,79 @@ def power_ratings(feats: pd.DataFrame, settings: Settings = SETTINGS) -> pd.Data
 
 
 def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
-               exclude: set[str] | None = None) -> pd.DataFrame:
-    """Prop projections for both teams of one game (game = a features row)."""
+               absences: dict[str, dict[str, float]] | None = None,
+               team_pts: dict[str, float] | None = None) -> pd.DataFrame:
+    """Prop projections for both teams of one game (game = a features row).
+
+    absences: {"home": {name: P(out)}, "away": {...}} from the injury feed / --out.
+    team_pts: {"home": points, "away": points} predicted by the game model.
+
+    For each player: chance of playing = recent appearance rate x (1 - P(out)).
+    Minutes *if playing* are scaled so the team's expected minutes are exactly
+    200 (absent players' minutes go to the rest). Points (and threes) are then
+    scaled so expected player points add up to the team's predicted score.
+    Stats are conditional on playing, which is how bookmakers settle props.
+    """
+    from .props import allocate_minutes, appearance_rates, fair_line, nb_sd
+
+    absences = absences or {}
     season = int(game["season"])
     pace_f = game["pace_exp"] / game["mu_pace"]
     out = []
-    for team, opp_def in ((game["home"], game["def_away"]), (game["away"], game["def_home"])):
+    for side, opp_def in (("home", game["def_away"]), ("away", game["def_home"])):
+        team = game[side]
         roster = recent_roster(players, team, season, props.cfg.recent_team_games)
         proj = props.project(team, opp_def, game["mu_eff"], pace_f, season, roster)
         if proj.empty:
             continue
-        # Names come in any spelling ("Devon Dotson" vs "DOTSON, DEVON"): fuzzy match.
-        drop = {match_player(e, proj["player"]) for e in (exclude or set())}
-        proj = proj[~proj["player"].isin(drop)].copy()
-        # Hand minutes of excluded/absent players to the rest so the team plays ~200.
-        scale = float(np.clip(200.0 / proj["exp_min"].sum(), 0.85, 1.2))
-        cols = ["exp_min", *PROP_STATS]
-        proj[cols] = proj[cols] * scale
+        appear = appearance_rates(players, team, season)
+        p_out = pd.Series(0.0, index=proj.index)
+        for name, w in (absences.get(side) or {}).items():
+            hit = match_player(name, proj["player"])
+            if hit is not None:
+                p_out[proj["player"] == hit] = np.maximum(p_out[proj["player"] == hit], w)
+        proj["p_out"] = p_out
+        proj["p_play"] = proj["player_id"].map(appear).fillna(0.5) * (1 - p_out)
+        base = proj["exp_min"].to_numpy()
+        minutes = allocate_minutes(base, proj["p_play"].to_numpy())
+        # Ruled-out players: show their usual role, not the teammates' scaled-up minutes.
+        minutes = np.where(proj["p_play"].to_numpy() > 0, minutes, base)
+        scale = np.divide(minutes, base, out=np.ones_like(base), where=base > 0)
+        proj["base_min"] = base
+        proj["exp_min"] = minutes
+        for st in PROP_STATS:
+            proj[st] = proj[st] * scale
+        if team_pts and team_pts.get(side):
+            expected_pts = float((proj["p_play"] * proj["pts"]).sum())
+            k = team_pts[side] / expected_pts if expected_pts > 0 else 1.0
+            proj["pts"] *= k
+            proj["fgm3"] *= k
+            proj["pts_scale"] = k
+        proj["pra"] = proj["pts"] + proj["reb"] + proj["ast"]
+        for st in PROP_STATS:
+            a = props.alpha[st]
+            proj[f"{st}_sd"] = [nb_sd(m, a) for m in proj[st]]
+            fl = [fair_line(m, a) for m in proj[st]]
+            proj[f"{st}_line"] = [x[0] for x in fl]
+            proj[f"{st}_p_over"] = [x[1] for x in fl]
+        proj["side"] = side
         out.append(proj)
     if not out:
         return pd.DataFrame()
     return pd.concat(out, ignore_index=True)
+
+
+def game_absences(game: pd.Series, injuries: pd.DataFrame | None,
+                  extra_out: list[str] | None = None) -> dict[str, dict[str, float]]:
+    """{"home": {name: P(out)}, "away": {...}} for one game from the feed and --out names.
+    --out names are matched against both rosters; only a true surname match counts."""
+    from .injuries import absences_for_team
+
+    res = {}
+    for side in ("home", "away"):
+        d = {}
+        if injuries is not None and not injuries.empty:
+            d.update(absences_for_team(injuries, game[f"{side}_names"]))
+        d.update({n: 1.0 for n in (extra_out or [])})
+        res[side] = d
+    return res

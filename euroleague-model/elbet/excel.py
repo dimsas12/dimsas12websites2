@@ -22,7 +22,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from . import config, dataset, injuries, pipeline
 from .config import SETTINGS
 from .models import GameModel
-from .props import PROP_STATS, nb_median
+from .props import PROP_STATS
 
 FONT = "Arial"
 HEAD_FILL = PatternFill("solid", fgColor="1F3864")
@@ -108,15 +108,20 @@ def export(day: pd.Timestamp, out: Path | None = None, fetch_injuries: bool = Tr
     up, absent = pipeline.apply_absences(up, inj)
     pred = pipeline.predict_games(up, model)
     coef = model.margin_model.raw_coefficients(model.margin_features)["avail_diff"]
+    tcoef = model.total_model.raw_coefficients(model.total_features)["missing_pts_total"]
     board, stamp = _latest_board(set(pred["game_id"]))
     picks = _picks_from_board(board) if not board.empty else board
 
     wb = Workbook()
     _sheet_picks(wb.active, day, picks, stamp)
-    _sheet_games(wb.create_sheet("Games"), pred, board, coef)
+    _sheet_games(wb.create_sheet("Games"), pred, board, coef, tcoef)
     _sheet_board(wb.create_sheet("Odds board"), board, stamp)
-    _sheet_injuries(wb.create_sheet("Injuries"), absent, inj, pred, coef)
-    _sheet_props(wb.create_sheet("Player props"), pred, inj)
+    _sheet_injuries(wb.create_sheet("Injuries"), absent, inj, pred, coef, tcoef)
+    props_model = pipeline.load_props_model()
+    allprops = _all_props(pred, inj, props_model)
+    _sheet_props(wb.create_sheet("Player props"), pred, allprops)
+    n_ladder = _sheet_ladder(wb.create_sheet("Prop ladder"), allprops, props_model)
+    _sheet_checker(wb.create_sheet("Prop checker"), allprops, n_ladder)
     _sheet_notes(wb.create_sheet("Notes"), model, stamp, inj)
 
     out = out or config.REPORTS_DIR / f"euroleague_{day:%Y-%m-%d}.xlsx"
@@ -141,7 +146,7 @@ def _sheet_picks(ws, day, picks: pd.DataFrame, stamp) -> None:
     ws["C4"].font = _f(italic=True, color="595959")
     ws["B5"].comment = Comment("0.25 = quarter Kelly (default in elbet).", "elbet")
 
-    headers = ["Time (UTC)", "Game", "Market", "Bet", "Odds", "Book", "Model win %",
+    headers = ["Time (UTC)", "Game", "Market", "Bet", "Odds (net)", "Book", "Model win %",
                "Market win % (no-vig)", "Push %", "Fair odds", "EV per 1 staked",
                "Full Kelly %", "Stake (EUR)", "Closing odds", "Result (W/L/P)",
                "Profit (EUR)", "Price CLV"]
@@ -190,6 +195,8 @@ def _sheet_picks(ws, day, picks: pd.DataFrame, stamp) -> None:
         "Enter the Closing odds (same bet, same line, just before tip-off) to see Price CLV = "
         "your odds / closing odds - 1. Beating the close on average is the best sign of an edge.",
         "Blue = hard-coded model/market numbers from the snapshot; black = formulas.",
+        "Odds (net) = price after exchange commission (Betfair 5%, Matchbook 2%); offshore books "
+        "(1xBet, GTbets, BetOnline, MyBookie, Marathonbet...) are never used as best price.",
         "One bet per game (best EV). Totals are the model's weakest market: treat those edges "
         "with extra caution.",
     ]):
@@ -197,14 +204,16 @@ def _sheet_picks(ws, day, picks: pd.DataFrame, stamp) -> None:
     ws.freeze_panes = "A9"
 
 
-def _sheet_games(ws, pred: pd.DataFrame, board: pd.DataFrame, coef: float) -> None:
+def _sheet_games(ws, pred: pd.DataFrame, board: pd.DataFrame, coef: float,
+                 tcoef: float) -> None:
     _title(ws, "Game predictions vs market",
            "Pure model (with injuries), before the 50/50 market blend used on the Picks sheet. "
            "Market = consensus no-vig across bookmakers.")
     headers = ["Time (UTC)", "Home", "Away", "Model home win %", "Fair home odds",
                "Fair away odds", "Pred. margin (home)", "Model spread (home)", "Market spread (home)",
                "Spread diff (pts)", "Pred. total", "Market total", "Total diff (pts)",
-               "Pred. score", "Market home win %", "Win % diff", "Injury edge (pts, + = home)"]
+               "Pred. score", "Market home win %", "Win % diff", "Injury edge (pts, + = home)",
+               "Injury effect on total (pts)"]
     _header(ws, 4, headers, [10, 22, 22, 10, 9, 9, 10, 10, 10, 9, 9, 9, 9, 11, 10, 9, 11])
     r = 5
     for g in pred.itertuples(index=False):
@@ -232,6 +241,8 @@ def _sheet_games(ws, pred: pd.DataFrame, board: pd.DataFrame, coef: float) -> No
               color=BLUE)
         _cell(ws, r, 16, f'=IF(O{r}="","",D{r}-O{r})', "+0.0%;-0.0%;0.0%")
         _cell(ws, r, 17, round(float(g.avail_diff) * coef, 2), "+0.0;-0.0;0.0", color=BLUE)
+        _cell(ws, r, 18, round(float(g.missing_pts_total) * tcoef, 2), "+0.0;-0.0;0.0",
+              color=BLUE)
         r += 1
     ws.cell(row=r + 1, column=1, value=(
         "Spread convention: negative = home team favoured (e.g. -6.5 means home must win by 7+). "
@@ -242,7 +253,7 @@ def _sheet_games(ws, pred: pd.DataFrame, board: pd.DataFrame, coef: float) -> No
 
 def _sheet_board(ws, board: pd.DataFrame, stamp) -> None:
     _title(ws, "Full odds board", f"Best price across bookmakers, snapshot {stamp or 'n/a'} UTC")
-    headers = ["Time (UTC)", "Game", "Market", "Bet", "Best odds", "Book", "Model win %",
+    headers = ["Time (UTC)", "Game", "Market", "Bet", "Best odds (net)", "Book", "Model win %",
                "Market win % (no-vig)", "Push %", "Fair odds", "EV per 1 staked", "Pick?"]
     _header(ws, 4, headers, [10, 11, 11, 15, 9, 14, 10, 12, 8, 9, 11, 8])
     picks = _picks_from_board(board) if not board.empty else board
@@ -272,12 +283,21 @@ def _sheet_board(ws, board: pd.DataFrame, stamp) -> None:
     ws.freeze_panes = "A5"
 
 
-def _sheet_injuries(ws, absent, inj, pred, coef) -> None:
+def _sheet_injuries(ws, absent, inj, pred, coef, tcoef) -> None:
     _title(ws, "Injuries applied", "Source: basketballsphere.com EuroLeague injury report "
            "(club reports), plus data/injuries/manual.csv")
     headers = ["Game", "Team", "Player", "Status", "Chance out", "Exp. minutes",
-               "Value (model units)", "Margin impact (pts)", "Injury", "Expected back"]
-    _header(ws, 4, headers, [11, 8, 24, 12, 10, 10, 11, 11, 34, 16])
+               "Value (model units)", "Margin impact (pts)", "Scoring value (pts)",
+               "Total impact (pts)", "Injury", "Expected back"]
+    _header(ws, 4, headers, [11, 8, 24, 12, 10, 10, 11, 11, 11, 11, 34, 16])
+    ws["J3"] = tcoef
+    ws["I3"] = "Total pts per pt:"
+    ws["I3"].font = _f(bold=True)
+    ws["J3"].font = _f(color=BLUE)
+    ws["J3"].number_format = "0.000"
+    ws["J3"].comment = Comment("Learned from 15 seasons: game-total points per point of "
+                               "missing scoring above replacement (teammates absorb most).",
+                               "elbet")
     ws["H3"] = coef
     ws["G3"] = "Points per unit:"
     ws["G3"].font = _f(bold=True)
@@ -293,7 +313,7 @@ def _sheet_injuries(ws, absent, inj, pred, coef) -> None:
     feed = {str(p).lower(): row for p, row in zip(inj["player"], inj.itertuples(index=False))}
     from .pipeline import match_player
     for a in absent.itertuples(index=False):
-        hit = match_player(a.player, pd.Series(list(inj["player"])))
+        hit = next((n for n in inj["player"] if match_player(n, [a.player])), None)
         src = feed.get(str(hit).lower()) if hit else None
         _cell(ws, r, 1, games.get(a.game_id, a.game_id))
         _cell(ws, r, 2, a.team)
@@ -303,43 +323,153 @@ def _sheet_injuries(ws, absent, inj, pred, coef) -> None:
         _cell(ws, r, 6, round(float(a.exp_min), 1), "0.0", color=BLUE)
         _cell(ws, r, 7, round(float(a.value), 2), "0.00", color=BLUE)
         _cell(ws, r, 8, f"=E{r}*G{r}*$H$3", "0.00")
-        _cell(ws, r, 9, src.injury if src is not None else "")
-        _cell(ws, r, 10, src.back if src is not None else "")
+        _cell(ws, r, 9, round(float(a.pts_value), 2), "0.00", color=BLUE)
+        _cell(ws, r, 10, f"=E{r}*I{r}*$J$3", "+0.00;-0.00;0.00")
+        _cell(ws, r, 11, src.injury if src is not None else "")
+        _cell(ws, r, 12, src.back if src is not None else "")
         r += 1
     ws.freeze_panes = "A5"
 
 
-def _sheet_props(ws, pred, inj) -> None:
-    _title(ws, "Player prop projections",
-           "Mean projection and median (the fair line is just above/below the median). "
-           "Excludes players listed Out/Doubtful.")
-    stats = ["pts", "reb", "ast", "fgm3", "pra"]
-    names = {"pts": "PTS", "reb": "REB", "ast": "AST", "fgm3": "3PM", "pra": "PRA"}
-    headers = ["Game", "Team", "Player", "Exp. min"] + \
-        [f"{names[s]} {k}" for s in stats for k in ("mean", "median")]
-    _header(ws, 4, headers, [11, 7, 24, 8] + [8] * (2 * len(stats)))
+STAT_NAMES = {"pts": "PTS", "reb": "REB", "ast": "AST", "fgm3": "3PM", "pra": "PRA"}
+
+
+def _all_props(pred: pd.DataFrame, inj: pd.DataFrame, props_model) -> pd.DataFrame:
     _, players = dataset.load_tables()
-    props = pipeline.load_props_model()
-    exclude = set(inj.loc[inj["weight"] >= 0.75, "player"]) if not inj.empty else set()
+    out = []
+    for _, g in pred.iterrows():
+        absences = pipeline.game_absences(g, inj)
+        proj = pipeline.game_props(g, players, props_model, absences,
+                                   {"home": g["pred_home_pts"], "away": g["pred_away_pts"]})
+        if not proj.empty:
+            proj["game"] = f"{g['home']}-{g['away']}"
+            proj["team_pts"] = np.where(proj["side"] == "home", g["pred_home_pts"],
+                                        g["pred_away_pts"])
+            out.append(proj)
+    return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
+
+
+def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
+    _title(ws, "Player prop projections",
+           "Projections are IF THE PLAYER PLAYS (how books settle props). Chance plays = recent "
+           "appearance rate x (1 - injury probability). Team check rows: expected minutes must "
+           "be 200 and expected points must equal the game model's team score.")
+    stats = ["pts", "reb", "ast", "fgm3", "pra"]
+    headers = ["Game", "Team", "Player", "Chance plays", "Minutes if plays", "Injury P(out)"]
+    for st in stats:
+        n = STAT_NAMES[st]
+        headers += [f"{n} mean", f"{n} SD", f"{n} fair line", f"{n} P(over fair)"]
+    _header(ws, 4, headers, [10, 6, 24, 8, 9, 8] + [7, 6, 7, 8] * len(stats))
+    if allprops.empty:
+        return
     r = 5
-    for g in pred.itertuples(index=False):
-        proj = pipeline.game_props(pd.Series(g._asdict()), players, props, exclude)
-        if proj.empty:
-            continue
-        proj = proj[proj["exp_min"] >= 8]
-        for p in proj.itertuples(index=False):
-            _cell(ws, r, 1, f"{g.home}-{g.away}")
-            _cell(ws, r, 2, p.team)
+    for (game, team), d in allprops.groupby(["game", "team"], sort=False):
+        first = r
+        for p in d.sort_values("exp_min", ascending=False).itertuples(index=False):
+            _cell(ws, r, 1, game)
+            _cell(ws, r, 2, team)
             _cell(ws, r, 3, p.player)
-            _cell(ws, r, 4, round(p.exp_min, 1), "0.0", color=BLUE)
-            col = 5
-            for s in stats:
-                m = getattr(p, s)
-                _cell(ws, r, col, round(m, 1), "0.0", color=BLUE)
-                _cell(ws, r, col + 1, nb_median(m, props.alpha[s]), "0", color=BLUE)
-                col += 2
+            _cell(ws, r, 4, round(p.p_play, 3), "0%", color=BLUE)
+            _cell(ws, r, 5, round(p.exp_min, 1), "0.0", color=BLUE)
+            _cell(ws, r, 6, round(p.p_out, 2) if p.p_out else None, "0%", color=BLUE)
+            col = 7
+            for st in stats:
+                _cell(ws, r, col, round(getattr(p, st), 2), "0.0", color=BLUE)
+                _cell(ws, r, col + 1, round(getattr(p, f"{st}_sd"), 2), "0.0", color=BLUE)
+                _cell(ws, r, col + 2, getattr(p, f"{st}_line"), "0.0", color=BLUE, bold=True)
+                _cell(ws, r, col + 3, round(getattr(p, f"{st}_p_over"), 3), "0.0%", color=BLUE)
+                col += 4
             r += 1
+        last = r - 1
+        # Consistency checks as live formulas.
+        _cell(ws, r, 3, f"{team} expected minutes (target 200)", bold=True)
+        _cell(ws, r, 5, f"=SUMPRODUCT(D{first}:D{last},E{first}:E{last})", "0.0", bold=True)
+        _cell(ws, r + 1, 3, f"{team} expected points vs model team score", bold=True)
+        _cell(ws, r + 1, 5, round(float(d["team_pts"].iloc[0]), 1), "0.0", color=BLUE,
+              bold=True)
+        _cell(ws, r + 1, 7, f"=SUMPRODUCT(D{first}:D{last},G{first}:G{last})", "0.0", bold=True)
+        r += 3
     ws.freeze_panes = "D5"
+
+
+def _sheet_ladder(ws, allprops: pd.DataFrame, props_model) -> int:
+    """Long table of P(over/under) for half-point lines around each projection."""
+    from .props import ladder_lines, nb_probs
+
+    _title(ws, "Prop over/under ladder",
+           "Negative binomial probabilities if the player plays. Used by the Prop checker sheet.")
+    headers = ["Key", "Game", "Team", "Player", "Stat", "Line", "P(over)", "P(under)",
+               "Fair over odds", "Fair under odds"]
+    _header(ws, 4, headers, [30, 10, 6, 24, 6, 7, 9, 9, 10, 10])
+    r = 5
+    for p in allprops.itertuples(index=False):
+        for st in ("pts", "reb", "ast", "fgm3", "pra"):
+            mean = getattr(p, st)
+            for line in ladder_lines(mean, st):
+                po, _, pu = nb_probs(mean, props_model.alpha[st], line)
+                _cell(ws, r, 1, f"{p.player}|{st}|{line:g}")
+                _cell(ws, r, 2, p.game)
+                _cell(ws, r, 3, p.team)
+                _cell(ws, r, 4, p.player)
+                _cell(ws, r, 5, st)
+                _cell(ws, r, 6, line, "0.0")
+                _cell(ws, r, 7, round(po, 4), "0.0%", color=BLUE)
+                _cell(ws, r, 8, round(pu, 4), "0.0%", color=BLUE)
+                _cell(ws, r, 9, f"=IF(G{r}>0,1/G{r},\"\")", "0.00")
+                _cell(ws, r, 10, f"=IF(H{r}>0,1/H{r},\"\")", "0.00")
+                r += 1
+    ws.freeze_panes = "B5"
+    ws.auto_filter.ref = f"A4:J{r - 1}"
+    return r - 1
+
+
+def _sheet_checker(ws, allprops: pd.DataFrame, ladder_last: int) -> None:
+    _title(ws, "Prop line checker",
+           "Type a bookmaker line and odds in the yellow cells; probability and EV come from the "
+           "Prop ladder. Player = name exactly as in the list (column N); stat = pts, reb, ast, "
+           "fgm3 or pra; line must end in .5.")
+    headers = ["Player", "Stat", "Line", "Over odds", "Under odds", "P(over)", "P(under)",
+               "EV over", "EV under", "Better side"]
+    _header(ws, 4, headers, [24, 7, 7, 9, 9, 9, 9, 9, 9, 10])
+    keys = f"'Prop ladder'!$A$5:$A${ladder_last}"
+    pover = f"'Prop ladder'!$G$5:$G${ladder_last}"
+    punder = f"'Prop ladder'!$H$5:$H${ladder_last}"
+    names = sorted(allprops["player"].unique()) if not allprops.empty else []
+    ws.cell(row=4, column=14, value="Players").font = _f(bold=True)
+    for i, n in enumerate(names, 5):
+        ws.cell(row=i, column=14, value=n).font = _f()
+    ws.column_dimensions["N"].width = 26
+    pv = DataValidation(type="list", formula1=f"=$N$5:$N${4 + max(1, len(names))}",
+                        allow_blank=True)
+    sv = DataValidation(type="list", formula1='"pts,reb,ast,fgm3,pra"', allow_blank=True)
+    ws.add_data_validation(pv)
+    ws.add_data_validation(sv)
+    example = None
+    if not allprops.empty:
+        top = allprops.sort_values("pts", ascending=False).iloc[0]
+        example = (top["player"], "pts", float(top["pts_line"]), 1.87, 1.93)
+    for r in range(5, 25):
+        vals = example if (r == 5 and example) else (None,) * 5
+        for j, v in enumerate(vals, 1):
+            fmt = "0.0" if j == 3 else ("0.00" if j in (4, 5) else None)
+            _cell(ws, r, j, v, fmt, color=BLUE, fill=INPUT_FILL)
+        pv.add(f"A{r}")
+        sv.add(f"B{r}")
+        key = f'A{r}&"|"&B{r}&"|"&C{r}'
+        _cell(ws, r, 6, f'=IF(A{r}="","",IFERROR(INDEX({pover},MATCH({key},{keys},0)),'
+                        f'"not in ladder"))', "0.0%")
+        _cell(ws, r, 7, f'=IF(A{r}="","",IFERROR(INDEX({punder},MATCH({key},{keys},0)),'
+                        f'"not in ladder"))', "0.0%")
+        _cell(ws, r, 8, f'=IF(OR(D{r}="",NOT(ISNUMBER(F{r}))),"",F{r}*(D{r}-1)-G{r})',
+              "+0.0%;-0.0%;0.0%")
+        _cell(ws, r, 9, f'=IF(OR(E{r}="",NOT(ISNUMBER(G{r}))),"",G{r}*(E{r}-1)-F{r})',
+              "+0.0%;-0.0%;0.0%")
+        _cell(ws, r, 10, f'=IF(OR(H{r}="",I{r}=""),"",IF(MAX(H{r},I{r})<0,"no bet",'
+                         f'IF(H{r}>I{r},"Over","Under")))')
+    ws.cell(row=26, column=1, value=(
+        "Row 5 is an example (the top projected scorer at the fair line with typical odds); overwrite it. "
+        "EV = expected profit per 1 staked. Props are void if the player does not play.")
+    ).font = _f(italic=True, color="595959")
 
 
 def _sheet_notes(ws, model, stamp, inj) -> None:

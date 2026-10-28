@@ -84,6 +84,7 @@ or pass `--out "Name" ...` for a one-off. `--no-injuries` switches it off.
 | `predict [--days N]` | win probability, fair odds, fair spread and total for upcoming games |
 | `picks` | live odds from The Odds API, edge (EV) per market, Kelly stakes; saves `reports/picks_*.csv` and the full board |
 | `props GAME_ID` | player projections (minutes, PTS, REB, AST, 3PM, PRA), probabilities for lines you give |
+| `excel [--date D]` | Excel report for one game day: picks + tracker, games vs market, odds board, injuries, props with SD/fair lines, over/under ladder and a line checker |
 | `injuries` | the injury list the model uses (auto-downloaded; manual overrides in `data/injuries/manual.csv`) |
 | `closing [--window MIN]` | record closing odds for logged bets tipping off soon; computes CLV |
 | `track [--show N]` | settle finished bets; profit, ROI and closing-line value report |
@@ -126,14 +127,20 @@ seasons only. Outcomes are normal with the residual SD (≈12 points for margin,
 ≈17 for total), discretised to whole points so whole-number lines get a correct
 push probability and a tied margin is impossible (overtime).
 
-**Player props**: expected minutes × per-minute rate (decayed averages of the
+**Player props** (projections are *if the player plays*, as books settle them):
+each player gets a chance of playing (recent appearance rate × (1 − injury
+probability)); minutes if playing are scaled so the team's expected minutes are
+exactly 200 (max 40 each), and points are scaled so expected player points equal
+the game model's team score. Per player: expected minutes × per-minute rate (decayed averages of the
 player's previous games, shrunk toward the league rate; little shrinkage for
 assists and threes, which are very player-specific) × pace factor ×
 opponent-defence factor. Negative binomial outcomes with dispersion fitted per
 stat. Minutes of players you `--exclude` are given to the rest of the roster.
 
-**Betting**: no-vig market probabilities (power method, averaged across books),
-EV at the best available price, fractional Kelly capped at 3% of bankroll per
+**Betting**: no-vig market probabilities (power method, averaged across all
+books), EV at the best price among usable books (offshore books such as 1xBet,
+GTbets, BetOnline are excluded; `--bookmakers` limits it to your own books) and
+after exchange commission (Betfair 5%, Matchbook 2%), fractional Kelly capped at 3% of bankroll per
 bet and 20% per slate, one bet per game (use `--all-markets` to allow more),
 and filters on minimum EV (3%), minimum probability and maximum odds.
 

@@ -181,3 +181,34 @@ def test_settle_and_clv():
     assert list(out["profit"]) == [9.0, 0.0, -10.0]
     # Bet at 2.10 on a side that closed at a fair 50%: +5% CLV.
     assert tracking.clv(0.5, 0.0, 2.10) == pytest.approx(0.05)
+
+
+def test_minutes_allocation_sums_to_200():
+    from elbet.props import allocate_minutes
+    base = np.array([30, 28, 25, 22, 20, 18, 15, 12, 10, 8.0])
+    p_play = np.array([1, 0, 1, 0.5, 1, 1, 1, 1, 1, 0.8])  # one out, one 50/50
+    m = allocate_minutes(base, p_play)
+    assert (p_play * m).sum() == pytest.approx(200, abs=0.01)
+    assert m.max() <= 40 and m[0] > 30  # starters absorb the missing minutes
+
+
+def test_exchange_commission_and_offshore_books():
+    from elbet.odds import net_price, usable_books
+    assert net_price(2.10, "betfair_ex_eu") == pytest.approx(2.045)
+    assert net_price(2.10, "williamhill") == 2.10
+    assert usable_books({"onexbet", "pinnacle", "gtbets"}) == {"pinnacle"}
+    assert usable_books({"onexbet", "pinnacle"}, {"onexbet"}) == {"onexbet"}
+
+
+def test_strict_player_matching():
+    from elbet.pipeline import match_player
+    roster = ["GABRIEL, WENYEN", "WALKER IV, LONNIE", "TANASKOVIC, NIKOLA"]
+    assert match_player("Gabriel Lundberg", roster) is None
+    assert match_player("Nikola Milutinov", roster) is None
+    assert match_player("Lonnie Walker", roster) == "WALKER IV, LONNIE"
+
+
+def test_overtime_mass_goes_to_small_margins():
+    # Normal approximation without the tie: P(M > 6.5) = 52.9%; OT adds only a little.
+    ph, _, _ = spread_probs(7.36, 11.89, -6.5)
+    assert 0.529 < ph < 0.535
