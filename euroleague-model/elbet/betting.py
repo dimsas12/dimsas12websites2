@@ -23,7 +23,10 @@ def devig(odds: list[float], method: str = "power") -> list[float]:
         # Find k such that sum(q_i ** k) == 1; shades favourite/longshot bias better.
         if abs(q.sum() - 1.0) < 1e-9:
             return list(q)
-        k = brentq(lambda k: (q ** k).sum() - 1.0, 0.2, 5.0)
+        f = lambda k: (q ** k).sum() - 1.0  # noqa: E731
+        if f(0.2) * f(20.0) > 0:  # degenerate prices: fall back to normalising
+            return list(q / q.sum())
+        k = brentq(f, 0.2, 20.0)
         return list(q ** k)
     raise ValueError(f"unknown devig method {method}")
 

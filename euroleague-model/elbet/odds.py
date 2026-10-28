@@ -25,6 +25,8 @@ PROP_MARKETS = "player_points,player_rebounds,player_assists,player_threes," \
 PROP_STAT = {"player_points": "pts", "player_rebounds": "reb", "player_assists": "ast",
              "player_threes": "fgm3", "player_points_rebounds_assists": "pra"}
 
+MAX_OVERROUND = 1.15  # books charging more than this are treated as bad data
+
 _STOP = {"bc", "kk", "bk", "fc", "sk", "cb", "basket", "basketball", "club", "the",
          "de", "s.a.d", "sad"}
 
@@ -189,7 +191,19 @@ def market_lines(rows: pd.DataFrame) -> dict:
     return out
 
 
+def _sane_books(df: pd.DataFrame, col: str, sides: tuple[str, str]) -> pd.DataFrame:
+    """Drop books whose two-way margin is implausible (suspended or stale markets
+    quoted at e.g. 1.01/1.01), so they can't pose as the best price."""
+    keep = []
+    for book, b in df.groupby("book"):
+        prices = [b[b[col] == s]["price"].max() for s in sides]
+        if all(pd.notna(prices)) and 0.98 <= sum(1 / p for p in prices) <= MAX_OVERROUND:
+            keep.append(book)
+    return df[df["book"].isin(keep)]
+
+
 def _best_and_fair(df: pd.DataFrame, col: str, sides: tuple[str, str], devig) -> dict:
+    df = _sane_books(df, col, sides)
     res = {}
     for s in sides:
         d = df[df[col] == s]
