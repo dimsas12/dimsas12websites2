@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import signal
+from pathlib import Path
 import sys
 
 import numpy as np
@@ -309,6 +310,15 @@ def cmd_track(args):
         print("\n" + tail.assign(**{c: tail[c].round(3) for c in num}).to_string(index=False))
 
 
+def cmd_excel(args):
+    from . import excel
+
+    day = pd.Timestamp(args.date) if args.date else pd.Timestamp.now(tz="UTC").tz_convert(None)
+    path = excel.export(day, Path(args.out) if args.out else None,
+                        fetch_injuries=not args.cached_injuries)
+    print(f"wrote {path}")
+
+
 def cmd_injuries(args):
     inj = injuries.load_injuries(fetch=not args.cached)
     if inj.empty:
@@ -530,6 +540,12 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("track", help="settle logged bets; profit and CLV report")
     sp.add_argument("--show", type=int, default=0, help="also list the last N bets")
     sp.set_defaults(func=cmd_track)
+
+    sp = sub.add_parser("excel", help="Excel report for one game day (uses the last picks run)")
+    sp.add_argument("--date", help="YYYY-MM-DD (default: today, UTC)")
+    sp.add_argument("--out", help="output .xlsx path")
+    sp.add_argument("--cached-injuries", action="store_true")
+    sp.set_defaults(func=cmd_excel)
 
     sp = sub.add_parser("injuries", help="show the injury list used by the model")
     sp.add_argument("--cached", action="store_true", help="don't re-download")

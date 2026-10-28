@@ -161,7 +161,6 @@ def power_ratings(feats: pd.DataFrame, settings: Settings = SETTINGS) -> pd.Data
 def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
                exclude: set[str] | None = None) -> pd.DataFrame:
     """Prop projections for both teams of one game (game = a features row)."""
-    exclude = {e.lower() for e in (exclude or set())}
     season = int(game["season"])
     pace_f = game["pace_exp"] / game["mu_pace"]
     out = []
@@ -170,8 +169,9 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
         proj = props.project(team, opp_def, game["mu_eff"], pace_f, season, roster)
         if proj.empty:
             continue
-        proj = proj[~proj["player"].str.lower().isin(exclude)
-                    & ~proj["player_id"].str.lower().isin(exclude)].copy()
+        # Names come in any spelling ("Devon Dotson" vs "DOTSON, DEVON"): fuzzy match.
+        drop = {match_player(e, proj["player"]) for e in (exclude or set())}
+        proj = proj[~proj["player"].isin(drop)].copy()
         # Hand minutes of excluded/absent players to the rest so the team plays ~200.
         scale = float(np.clip(200.0 / proj["exp_min"].sum(), 0.85, 1.2))
         cols = ["exp_min", *PROP_STATS]
