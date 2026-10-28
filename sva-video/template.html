@@ -577,7 +577,8 @@ function sQuarters(t, a, b, s) {
   });
   qs.forEach((q, i) => {
     // Q1 lands on the first line, the rest on the second (the half), all before the verdict
-    const t0 = i === 0 ? cue(s, a, 0, .1) : cue(s, a, 1, 1.2) + (i - 1) * .3;
+    const o = s.cueOffset ?? 0;
+    const t0 = i === 0 ? cue(s, a, o, .1) : cue(s, a, o + 1, 1.2) + (i - 1) * .3;
     const k = p(t, t0, t0 + .45, easeOutExpo), cx = x0 + slot * (i + .5), bw = slot * .32;
     [[q[0], C.blue, -1], [q[1], C.draw, 1]].forEach(([v, col, side]) => {
       const top = lerp(y0, Y(v), k);
@@ -626,7 +627,7 @@ function sChecklist(t, a, b, s) {
   s.items.forEach((it, i) => {
     const y = y0 + i * gap;
     const k = p(t, a + .1 + i * .1, a + .45 + i * .1, easeOutExpo);
-    const t0 = cue(s, a, i + 1, .9 + i * .8);
+    const t0 = cue(s, a, i + 1 + (s.cueOffset ?? 0), .9 + i * .8);
     const ck = p(t, t0, t0 + .25, easeBack);
     ctx.save(); ctx.translate((1 - k) * W * (i % 2 ? 1 : -1), 0); ctx.globalAlpha *= clamp(k * 2);
     rrect(80, y, W - 160, 200, 34);
@@ -980,7 +981,7 @@ const IMPACTS = {
   called: (s, a) => [cue(s, a, 1, 1.8) + .3],
   boot: (s, a) => [a + .7],   // the logo landing; nothing over the voice
   quarters: (s, a) => [cue(s, a, (s.cues || [0, 0]).length - 1, 2.6) + .2],
-  checklist: (s, a) => s.items.map((_, i) => cue(s, a, i + 1, .9 + i * .8) + .45),   // after the first word, so names stay clear
+  checklist: (s, a) => s.items.map((_, i) => cue(s, a, i + 1 + (s.cueOffset ?? 0), .9 + i * .8) + .45),   // after the first word, so names stay clear
   margins: (s, a) => [cue(s, a, 1, 1.6) + .22],
   schedule: (s, a) => [wordT(s, a, s.sitWord || 'sits', 2.4) + .15],
   players: (s, a) => [cue(s, a, 1, 1.6) + .15],

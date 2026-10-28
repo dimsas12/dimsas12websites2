@@ -15,8 +15,9 @@ const VOICE_FX = ['highpass=f=75', 'equalizer=f=170:t=q:w=1:g=2', 'equalizer=f=3
   'equalizer=f=7500:t=q:w=1.5:g=-2', 'acompressor=threshold=0.1:ratio=3:attack=5:release=120:makeup=1.5',
   'aecho=0.85:0.5:28|47:0.07|0.04'].join(',');
 
+let VOICE_ENV = {};   // per-pick voice settings, e.g. "voiceSpeed": 1.2
 function tts(text, out) {
-  const res = execFileSync('python3', [path.join(__dirname, 'tts.py'), out, text], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const res = execFileSync('python3', [path.join(__dirname, 'tts.py'), out, text], { stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, ...VOICE_ENV } });
   return JSON.parse(res.toString().trim().split('\n').pop());
 }
 
@@ -96,6 +97,7 @@ function mix(video, out, dur, clips, tl, data, workDir, classic) {
   if (!pickFile) { console.error('usage: node render.js <pick.json> [--stills t1,t2]'); process.exit(1); }
   const data = JSON.parse(fs.readFileSync(pickFile, 'utf8'));
   const classic = data.template === 'template-classic';
+  if (data.voiceSpeed) VOICE_ENV.SVA_SPEED = String(data.voiceSpeed);
   const name = path.basename(pickFile, '.json');
   const outDir = path.join(__dirname, 'output');
   const workDir = path.join(outDir, '.work', name);

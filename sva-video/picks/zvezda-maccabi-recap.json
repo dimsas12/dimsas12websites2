@@ -21,9 +21,9 @@
   "scenes": [
     {
       "type": "called",
-      "dur": 3.2,
+      "dur": 2.6,
       "lead": 0.1,
-      "voice": "We said Crvena Zvezda would control this one... They did a lot more than that.",
+      "voice": "We said they'd control this one... They didn't just control it. They destroyed it.",
       "tag": "PRE-GAME",
       "date": "27.10",
       "label": "OUR CALL",
@@ -35,8 +35,8 @@
     },
     {
       "type": "scoreboard",
-      "dur": 3.2,
-      "voice": "Final score: Zvezda one hundred, Maccabi seventy-eight. We needed five. They won by twenty-two.",
+      "dur": 2.6,
+      "voice": "One hundred... to seventy-eight. We needed five. They won by twenty-two.",
       "title": "FINAL",
       "tag": "FINAL · BELGRADE",
       "rows": [
@@ -59,8 +59,8 @@
     },
     {
       "type": "quarters",
-      "dur": 3.2,
-      "voice": "Thirty-four to fifteen after one quarter. Fifty-five to thirty at the half. Game over.",
+      "dur": 2.6,
+      "voice": "And here's the crazy part. Thirty-four to fifteen after one quarter. Fifty-five to thirty at the half. Game over.",
       "title": "HOW IT HAPPENED",
       "subtitle": "POINTS BY QUARTER",
       "home": "ZVEZDA",
@@ -85,12 +85,13 @@
       ],
       "max": 40,
       "leadLabel": "ZVEZDA LEAD",
-      "verdict": "GAME OVER AT HALF"
+      "verdict": "GAME OVER AT HALF",
+      "cueOffset": 1
     },
     {
       "type": "checklist",
-      "dur": 3.4,
-      "voice": "Every part of our read landed. The bounce-back, after the derby loss. The Belgrade crowd. Nwora, with eighteen. And Koloko, starting at center on debut.",
+      "dur": 2.6,
+      "voice": "Why? Because every part of our read landed. The bounce-back. The home crowd. The scorer coming back. The new big man.",
       "title": "THE READ, CHECKED",
       "items": [
         {
@@ -109,42 +110,18 @@
           "head": "KOLOKO AT THE RIM",
           "proof": "STARTED AT CENTER ON DEBUT"
         }
-      ]
-    },
-    {
-      "type": "players",
-      "dur": 3,
-      "voice": "Tyson Carter, a career-high twenty-four with six threes. Jared Butler added twenty-one.",
-      "title": "DIFFERENCE-MAKERS",
-      "players": [
-        {
-          "name": "TYSON CARTER",
-          "team": "CRVENA ZVEZDA",
-          "value": 24,
-          "max": 30,
-          "unit": "PTS · CAREER HIGH",
-          "note": "Six threes, 14 in the first quarter",
-          "dec": 0
-        },
-        {
-          "name": "JARED BUTLER",
-          "team": "CRVENA ZVEZDA",
-          "value": 21,
-          "max": 30,
-          "unit": "POINTS",
-          "note": "Plus Nwora 18 and 9 assists from Chris Jones",
-          "dec": 0
-        }
-      ]
+      ],
+      "cueOffset": 1
     },
     {
       "type": "outro",
       "dur": 3.2,
       "lead": 1.25,
       "tail": 0.9,
-      "voice": "Follow SVA Consult. See the game differently.",
+      "voice": "Follow SVA Consult for the next one. See the game differently.",
       "cta": "FOLLOW FOR DAILY ANALYSIS",
       "disclaimer": false
     }
-  ]
+  ],
+  "voiceSpeed": 1.2
 }
