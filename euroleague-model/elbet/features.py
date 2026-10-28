@@ -5,11 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .availability import AvailabilityModel
 from .config import Settings
 from .ratings import efficiency_ratings, run_elo
 
-MARGIN_FEATURES = ["rating_margin", "elo_diff", "neutral", "short_rest_diff", "playoff"]
-TOTAL_FEATURES = ["rating_total", "pace_exp", "playoff", "early_season", "scoring_trend"]
+MARGIN_FEATURES = ["rating_margin", "elo_diff", "neutral", "short_rest_diff", "playoff",
+                   "avail_diff"]
+TOTAL_FEATURES = ["rating_total", "pace_exp", "playoff", "early_season", "scoring_trend",
+                  "missing_total"]
 
 
 def _rest_days(games: pd.DataFrame) -> pd.DataFrame:
@@ -59,7 +62,10 @@ def _games_played(games: pd.DataFrame) -> pd.DataFrame:
     return wide.rename(columns={"home": "gp_home", "away": "gp_away"})
 
 
-def build_features(games: pd.DataFrame, settings: Settings) -> pd.DataFrame:
+def build_features(games: pd.DataFrame, settings: Settings, box: pd.DataFrame | None = None,
+                   availability: AvailabilityModel | None = None) -> pd.DataFrame:
+    """Pre-game features. With player box scores, also player-availability features
+    (`availability` is filled in place so its end state can be reused for live games)."""
     games = games.sort_values(["date", "game_code"]).reset_index(drop=True)
     elo, _ = run_elo(games, settings.elo)
     eff = efficiency_ratings(games, settings.ratings).reset_index(drop=True)
@@ -79,8 +85,20 @@ def build_features(games: pd.DataFrame, settings: Settings) -> pd.DataFrame:
     # Recent league scoring vs. the league level implied by the (slow) ratings.
     feats["scoring_trend"] = (feats["league_total_recent"]
                               - feats["mu_eff"] * feats["mu_pace"] / 50).fillna(0.0)
+    if box is not None and not box.empty:
+        avail = (availability or AvailabilityModel()).run(games, box)
+        feats = feats.merge(avail, on="game_id", how="left")
+    for col in ("missing_home", "missing_away", "n_missing_home", "n_missing_away"):
+        feats[col] = feats[col].fillna(0.0) if col in feats else 0.0
+    set_availability(feats)
     feats["margin"] = feats["home_pts"] - feats["away_pts"]
     feats["total"] = feats["home_pts"] + feats["away_pts"]
     feats["home_win"] = (feats["margin"] > 0).astype(float).where(feats["played"])
     feats["has_ratings"] = feats["rating_margin"].notna()
     return feats
+
+
+def set_availability(feats: pd.DataFrame) -> None:
+    """Derive model inputs from missing_home / missing_away (positive avail_diff favours home)."""
+    feats["avail_diff"] = feats["missing_away"] - feats["missing_home"]
+    feats["missing_total"] = feats["missing_home"] + feats["missing_away"]

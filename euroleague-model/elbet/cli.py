@@ -10,7 +10,8 @@ import sys
 import numpy as np
 import pandas as pd
 
-from . import backtest, betting, config, dataset, fetch, odds, pipeline
+from . import (backtest, betting, config, dataset, fetch, injuries, odds, pipeline,
+               tracking)
 from .config import SETTINGS
 from .models import GameModel, spread_probs, total_probs
 from .props import PROP_STATS, nb_median, nb_probs
@@ -98,17 +99,35 @@ def cmd_ratings(args):
     print(r.round(1).to_string())
 
 
-def cmd_predict(args):
+def _upcoming_with_injuries(args, days: float) -> tuple[pd.DataFrame, GameModel]:
+    """Upcoming games with model predictions, adjusted for injuries and `--out`."""
     feats = pipeline.load_features()
     model = GameModel.load(pipeline.GAME_MODEL_PATH)
-    up = pipeline.upcoming(feats, args.days)
+    up = pipeline.upcoming(feats, days)
     if up.empty:
+        return up, model
+    inj = None if args.no_injuries else injuries.load_injuries()
+    up, absent = pipeline.apply_absences(up, inj, args.out)
+    pred = pipeline.predict_games(up, model)
+    if not absent.empty:
+        coef = model.margin_model.raw_coefficients(model.margin_features)["avail_diff"]
+        absent["impact_pts"] = absent["value"] * absent["p_out"] * coef
+        print("absences applied (impact = points of margin lost):")
+        print(absent[["game_id", "team", "player", "p_out", "exp_min", "impact_pts"]]
+              .round(2).to_string(index=False))
+        print()
+    elif inj is not None:
+        print("no rotation players listed as absent for these games\n")
+    return pred, model
+
+
+def cmd_predict(args):
+    pred, _ = _upcoming_with_injuries(args, args.days)
+    if pred.empty:
         print(f"no games in the next {args.days} days (run `elbet update` to refresh)")
         return
-    pred = pipeline.predict_games(up, model)
     show = pred[["game_id", "date", "home", "away", "p_home", "fair_home_ml", "fair_away_ml",
-                 "pred_margin", "fair_home_line", "pred_total", "pred_home_pts",
-                 "pred_away_pts"]].copy()
+                 "pred_margin", "fair_home_line", "pred_total", "avail_diff"]].copy()
     show["date"] = show["date"].dt.strftime("%a %d %b %H:%M")
     print(show.round(2).to_string(index=False))
     config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -121,74 +140,90 @@ def _blend(p_model: float, p_market: float | None, w: float) -> float:
     return (1 - w) * p_model + w * p_market
 
 
+def _event_lines(flat: pd.DataFrame, event_id: str, swapped: bool) -> dict:
+    ev = flat[flat["event_id"] == event_id]
+    if swapped:  # Odds API lists the teams the other way round
+        ev = ev.assign(home_team=ev["away_team"].iloc[0], away_team=ev["home_team"].iloc[0])
+    return odds.market_lines(ev)
+
+
+def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
+    """Every market side with model probability, best price, EV and stake."""
+    bet_cfg = SETTINGS.bet
+    matches = odds.match_events(flat, pred.reset_index())
+    unmatched = flat["event_id"].nunique() - len(matches)
+    if unmatched:
+        print(f"warning: {unmatched} Odds API events could not be matched to the schedule")
+    w = args.market_weight
+    rows = []
+    for event_id, (gid, swapped) in matches.items():
+        m = _event_lines(flat, event_id, swapped)
+        g = pred.loc[gid]
+        cands = []
+        if m.get("h2h"):
+            fh = m["h2h"]["fair_home"]
+            ph = _blend(g.p_home, fh, w)
+            cands += [("moneyline", "home", g.home, None, *m["h2h"]["home"], ph, 0.0, fh),
+                      ("moneyline", "away", g.away, None, *m["h2h"]["away"], 1 - ph, 0.0,
+                       None if fh is None else 1 - fh)]
+        if m.get("spreads"):
+            L = m["spreads"]["line"]
+            ph, pp, pa = spread_probs(g.pred_margin, g.margin_sd, L)
+            fh = m["spreads"]["fair_home"]
+            ph_b = _blend(ph / (ph + pa), fh, w) * (1 - pp)
+            cands += [("spread", "home", g.home, L, *m["spreads"]["home"], ph_b, pp, fh),
+                      ("spread", "away", g.away, -L, *m["spreads"]["away"], 1 - pp - ph_b, pp,
+                       None if fh is None else 1 - fh)]
+        if m.get("totals"):
+            L = m["totals"]["line"]
+            po, pp, pu = total_probs(g.pred_total, g.total_sd, L)
+            fo = m["totals"]["fair_over"]
+            po_b = _blend(po / (po + pu), fo, w) * (1 - pp)
+            cands += [("total", "over", "over", L, *m["totals"]["over"], po_b, pp, fo),
+                      ("total", "under", "under", L, *m["totals"]["under"], 1 - pp - po_b, pp,
+                       None if fo is None else 1 - fo)]
+        for market, sel, pick, line, price, book, p, push, p_mkt in cands:
+            rows.append({
+                "game_id": gid, "event_id": event_id, "commence": g.date,
+                "date": g.date.strftime("%a %d %b %H:%M"), "game": f"{g.home}-{g.away}",
+                "market": market, "selection": sel, "pick": pick, "line": line, "odds": price,
+                "book": book, "model_p": p, "market_p": p_mkt, "p_push": push,
+                "fair_odds": 1 / p if p > 0 else np.inf,
+                "ev": betting.expected_value(p, price, push),
+                "stake": betting.stake(p, price, args.bankroll, args.kelly,
+                                       bet_cfg.max_stake_pct, push),
+            })
+    return pd.DataFrame(rows)
+
+
 def cmd_picks(args):
-    feats = pipeline.load_features()
-    model = GameModel.load(pipeline.GAME_MODEL_PATH)
-    up = pipeline.upcoming(feats, args.days)
-    if up.empty:
+    pred, _ = _upcoming_with_injuries(args, args.days)
+    if pred.empty:
         print(f"no games in the next {args.days} days")
         return
-    pred = pipeline.predict_games(up, model).set_index("game_id")
+    # Never price games that have started: the Odds API also returns in-play odds.
+    now = pd.Timestamp.now(tz="UTC").tz_convert(None)
+    pred = pred[pred["date"] > now].set_index("game_id")
+    if pred.empty:
+        print("all games in the window have started")
+        return
     events, quota = odds.fetch_odds(regions=args.regions, bookmakers=args.bookmakers)
     print(f"Odds API: {len(events)} events, credits remaining {quota['x-requests-remaining']}")
     flat = odds.flatten(events)
     if flat.empty:
         print("no odds returned")
         return
-    matches = odds.match_events(flat, pred.reset_index())
-    bet_cfg = SETTINGS.bet
-    min_edge = args.min_edge if args.min_edge is not None else bet_cfg.min_edge
-    rows = []
-    for event_id, (gid, swapped) in matches.items():
-        ev = flat[flat["event_id"] == event_id]
-        if swapped:  # Odds API lists the teams the other way round
-            ev = ev.assign(home_team=ev["away_team"].iloc[0], away_team=ev["home_team"].iloc[0])
-        m = odds.market_lines(ev)
-        g = pred.loc[gid]
-        cands = []
-        if m.get("h2h"):
-            ph = _blend(g.p_home, m["h2h"]["fair_home"], args.market_weight)
-            cands += [("moneyline", g.home, None, *m["h2h"]["home"], ph, 0.0,
-                       m["h2h"]["fair_home"]),
-                      ("moneyline", g.away, None, *m["h2h"]["away"], 1 - ph, 0.0,
-                       None if m["h2h"]["fair_home"] is None else 1 - m["h2h"]["fair_home"])]
-        if m.get("spreads"):
-            L = m["spreads"]["line"]
-            ph, pp, pa = spread_probs(g.pred_margin, g.margin_sd, L)
-            fh = m["spreads"]["fair_home"]
-            ph_b = _blend(ph / (ph + pa), fh, args.market_weight) * (1 - pp)
-            cands += [("spread", g.home, L, *m["spreads"]["home"], ph_b, pp, fh),
-                      ("spread", g.away, -L, *m["spreads"]["away"], 1 - pp - ph_b, pp,
-                       None if fh is None else 1 - fh)]
-        if m.get("totals"):
-            L = m["totals"]["line"]
-            po, pp, pu = total_probs(g.pred_total, g.total_sd, L)
-            fo = m["totals"]["fair_over"]
-            po_b = _blend(po / (po + pu), fo, args.market_weight) * (1 - pp)
-            cands += [("total", "over", L, *m["totals"]["over"], po_b, pp, fo),
-                      ("total", "under", L, *m["totals"]["under"], 1 - pp - po_b, pp,
-                       None if fo is None else 1 - fo)]
-        for market, side, line, price, book, p, push, p_mkt in cands:
-            ev_ = betting.expected_value(p, price, push)
-            rows.append({
-                "date": g.date.strftime("%a %d %b %H:%M"), "game": f"{g.home}-{g.away}",
-                "market": market, "pick": side, "line": line, "best_odds": price, "book": book,
-                "model_p": p, "market_p": p_mkt, "fair_odds": 1 / p if p > 0 else np.inf,
-                "ev": ev_, "stake": betting.stake(p, price, args.bankroll, args.kelly,
-                                                  bet_cfg.max_stake_pct, push),
-            })
-    unmatched = len(flat["event_id"].unique()) - len(matches)
-    if unmatched:
-        print(f"warning: {unmatched} Odds API events could not be matched to the schedule")
-    allbets = pd.DataFrame(rows)
-    if allbets.empty:
+    board = build_board(pred, flat, args)
+    if board.empty:
         print("no markets matched")
         return
+    bet_cfg = SETTINGS.bet
+    min_edge = args.min_edge if args.min_edge is not None else bet_cfg.min_edge
     config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
-    allbets.to_csv(config.REPORTS_DIR / f"markets_{stamp}.csv", index=False)
-    picks = allbets[(allbets["ev"] >= min_edge) & (allbets["model_p"] >= bet_cfg.min_prob)
-                    & (allbets["best_odds"] <= bet_cfg.max_odds)]
+    board.to_csv(config.REPORTS_DIR / f"markets_{stamp}.csv", index=False)
+    picks = board[(board["ev"] >= min_edge) & (board["model_p"] >= bet_cfg.min_prob)
+                  & (board["odds"] <= bet_cfg.max_odds)]
     picks = picks.sort_values("ev", ascending=False)
     if bet_cfg.one_bet_per_game and not args.all_markets:
         picks = picks.drop_duplicates("game")
@@ -198,22 +233,92 @@ def cmd_picks(args):
     if picks.empty:
         print(f"no bets with EV >= {min_edge:.1%}. Full board in reports/markets_{stamp}.csv")
         return
-    print(picks.round(3).to_string(index=False))
+    cols = ["date", "game", "market", "pick", "line", "odds", "book", "model_p", "market_p",
+            "fair_odds", "ev", "stake"]
+    print(picks[cols].round(3).to_string(index=False))
     picks.to_csv(config.REPORTS_DIR / f"picks_{stamp}.csv", index=False)
     print(f"\n{len(picks)} picks, total stake {picks['stake'].sum():.2f} "
           f"of bankroll {args.bankroll:.0f}; saved reports/picks_{stamp}.csv")
+    if not args.no_log:
+        n = tracking.log_picks(picks)
+        print(f"logged {n} new picks to {tracking.LOG_PATH} "
+              f"(run `elbet closing` shortly before tip-off, `elbet track` after)")
 
 
-def _match_player(name: str, players: pd.Series) -> str | None:
-    """Match 'Sasha Vezenkov' / 'VEZENKOV, SASHA' / 'Vezenkov' to a projection row."""
-    toks = {t for t in odds._norm(name).split() if len(t) > 1}
-    best, score = None, 0.0
-    for p in players:
-        ptoks = set(odds._norm(p).split())
-        s = len(toks & ptoks) / max(1, len(toks))
-        if s > score:
-            best, score = p, s
-    return best if score >= 0.5 else None
+def cmd_closing(args):
+    """Record closing prices for logged bets whose games start soon."""
+    log = tracking.load_log()
+    now = pd.Timestamp.now(tz="UTC").tz_convert(None)
+    todo = tracking.needs_closing(log, now, args.window)
+    if todo.empty:
+        nxt = log[log["close_p"].isna() & (log["commence"] > now)]["commence"].min() \
+            if not log.empty else None
+        print("no logged bets tip off within the window; nothing fetched (0 credits used)")
+        if nxt is not None and pd.notna(nxt):
+            print(f"next bet without a closing price: {nxt:%a %d %b %H:%M} UTC")
+        return
+    model = GameModel.load(pipeline.GAME_MODEL_PATH)
+    events, quota = odds.fetch_odds(regions=args.regions)
+    print(f"Odds API: {len(events)} events, credits remaining {quota['x-requests-remaining']}")
+    flat = odds.flatten(events)
+    feats = pipeline.load_features()
+    games = feats[feats["game_id"].isin(todo["game_id"])]
+    matches = {gid: (eid, sw) for eid, (gid, sw) in odds.match_events(flat, games).items()}
+    done = 0
+    for i, b in todo.iterrows():
+        if b["game_id"] not in matches:
+            print(f"{b['game']}: not on the odds board any more")
+            continue
+        lines = _event_lines(flat, *matches[b["game_id"]])
+        res = tracking.closing_prob(b, lines, model.margin_sd, model.total_sd)
+        if res is None:
+            continue
+        p, push, close_line, close_odds = res
+        log.loc[i, ["close_at", "close_p", "close_line", "close_odds"]] = [
+            now.floor("s"), p, close_line, close_odds]
+        log.loc[i, "clv"] = tracking.clv(p, push, b["odds"])
+        done += 1
+        line = "" if pd.isna(b["line"]) else f" {b['line']:+g}"
+        print(f"{b['game']} {b['market']} {b['pick']}{line} @ {b['odds']:.2f}: "
+              f"closing p {p:.3f}, CLV {log.loc[i, 'clv']:+.1%}")
+    tracking.save_log(log)
+    print(f"recorded {done} closing prices")
+
+
+def cmd_track(args):
+    """Settle finished bets and report profit and closing-line value."""
+    log = tracking.load_log()
+    if log.empty:
+        print("no bets logged yet; `elbet picks` logs its picks automatically")
+        return
+    feats = pipeline.load_features()
+    log = tracking.settle(log, feats)
+    tracking.save_log(log)
+    rep = tracking.report(log)
+    print(rep.round(3).to_string(index=False))
+    c = log[log["clv"].notna()]
+    if len(c) >= 2:
+        se = c["clv"].std() / np.sqrt(len(c))
+        print(f"\naverage CLV {c['clv'].mean():+.2%} +/- {se:.2%} (1 s.e.) over {len(c)} bets."
+              " Positive and well clear of zero after ~100+ bets is the sign of a real edge.")
+    if args.show:
+        cols = ["commence", "game", "market", "pick", "line", "odds", "ev", "close_line",
+                "close_p", "clv", "result", "profit"]
+        tail = log[cols].tail(args.show)
+        num = tail.select_dtypes("number").columns
+        print("\n" + tail.assign(**{c: tail[c].round(3) for c in num}).to_string(index=False))
+
+
+def cmd_injuries(args):
+    inj = injuries.load_injuries(fetch=not args.cached)
+    if inj.empty:
+        print("no injury data")
+        return
+    upd = inj["updated"].dropna()
+    upd = upd[upd != ""].iloc[0] if (upd != "").any() else "?"
+    print(f"{len(inj)} entries (feed updated {upd}); manual overrides: {injuries.MANUAL_PATH}")
+    print(inj[["player", "team", "status", "weight", "injury", "back", "source"]]
+          .fillna("").to_string(index=False))
 
 
 def cmd_props(args):
@@ -226,7 +331,15 @@ def cmd_props(args):
     game = feats.loc[args.game]
     _, players = dataset.load_tables()
     props = pipeline.load_props_model()
-    proj = pipeline.game_props(game, players, props, set(args.exclude or []))
+    exclude = set(args.exclude or [])
+    if not args.no_injuries:
+        inj = injuries.load_injuries()
+        if not inj.empty:
+            exclude |= set(inj.loc[inj["weight"] >= 0.75, "player"])
+            doubt = inj[(inj["weight"] > 0) & (inj["weight"] < 0.75)]
+            if not doubt.empty:
+                print("questionable (not excluded):", ", ".join(doubt["player"]))
+    proj = pipeline.game_props(game, players, props, exclude)
     if proj.empty:
         print("no player history for these teams yet")
         return
@@ -246,7 +359,7 @@ def cmd_props(args):
         return
     rows = []
     for ln in lines.itertuples(index=False):
-        who = _match_player(ln.player, proj["player"])
+        who = pipeline.match_player(ln.player, proj["player"])
         if who is None or ln.stat not in PROP_STATS:
             print(f"skip: {ln.player} {ln.stat} (no projection)")
             continue
@@ -385,8 +498,14 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("ratings", help="current team power ratings")
     sp.set_defaults(func=cmd_ratings)
 
+    def availability(sp):
+        sp.add_argument("--out", nargs="*", default=[],
+                        help='extra players ruled out, e.g. --out "Vezenkov" "Nunn"')
+        sp.add_argument("--no-injuries", action="store_true", help="ignore the injury feed")
+
     sp = sub.add_parser("predict", help="model prices for upcoming games")
     sp.add_argument("--days", type=float, default=7)
+    availability(sp)
     sp.set_defaults(func=cmd_predict)
 
     sp = sub.add_parser("picks", help="compare model to live bookmaker odds (needs ODDS_API_KEY)")
@@ -397,14 +516,31 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--bookmakers", help="comma-separated Odds API bookmaker keys")
     sp.add_argument("--all-markets", action="store_true",
                     help="allow several bets on the same game (default: best EV only)")
+    sp.add_argument("--no-log", action="store_true", help="don't record picks in the bet log")
     staking(sp)
+    availability(sp)
     sp.set_defaults(func=cmd_picks)
+
+    sp = sub.add_parser("closing", help="record closing odds for logged bets (CLV)")
+    sp.add_argument("--window", type=float, default=120,
+                    help="capture bets whose game starts within this many minutes")
+    sp.add_argument("--regions", default="eu")
+    sp.set_defaults(func=cmd_closing)
+
+    sp = sub.add_parser("track", help="settle logged bets; profit and CLV report")
+    sp.add_argument("--show", type=int, default=0, help="also list the last N bets")
+    sp.set_defaults(func=cmd_track)
+
+    sp = sub.add_parser("injuries", help="show the injury list used by the model")
+    sp.add_argument("--cached", action="store_true", help="don't re-download")
+    sp.set_defaults(func=cmd_injuries)
 
     sp = sub.add_parser("props", help="player prop projections for one game")
     sp.add_argument("game", help="game id, e.g. E2026_85 (see `elbet predict`)")
     sp.add_argument("--lines", help="CSV: player,stat,line,over_odds,under_odds")
     sp.add_argument("--odds-api", action="store_true", help="try The Odds API for prop lines")
-    sp.add_argument("--exclude", nargs="*", help="players ruled out (name as in box score)")
+    sp.add_argument("--exclude", nargs="*", help="extra players ruled out")
+    sp.add_argument("--no-injuries", action="store_true", help="ignore the injury feed")
     staking(sp)
     sp.set_defaults(func=cmd_props)
 

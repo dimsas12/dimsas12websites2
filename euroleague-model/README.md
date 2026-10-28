@@ -42,6 +42,36 @@ elbet props E2026_85 --lines my_lines.csv --exclude "LESSORT, MATHIAS"
 During the season run `elbet update` (re-downloads the current season and
 rebuilds) before `predict` or `picks`.
 
+### Weekly routine (paper trading)
+
+1. `elbet update`, then `elbet picks --market-weight 0.5`: picks are logged to
+   `data/tracking/bets.csv` (about 3 Odds API credits).
+2. 30-90 minutes before each game day's first tip: `elbet closing` records the
+   closing price of every logged bet (3 credits; free if nothing is due).
+3. After the games: `elbet update && elbet track`.
+
+**Closing-line value (CLV)** = the expected value of your bet at the closing
+no-vig price. A model with a real edge beats the close on average; after 100+
+bets, an average CLV clearly above zero is far stronger evidence than profit.
+About 50 credits a month covers this routine; the free plan has 500.
+
+### Injuries
+
+`predict`, `picks` and `props` download the current EuroLeague injury list
+(basketballsphere.com, built from club reports) before every run. Out = 100%
+absent, Doubtful 75%, Questionable / Day to day 50%, Cleared 0%. Rotation
+players who are absent lower their team's rating by their value; the table
+shows the impact in points. Add news the feed is missing in
+`data/injuries/manual.csv`:
+
+```
+player,team,status
+Sasha Vezenkov,Olympiacos,Out
+Kendrick Nunn,Panathinaikos,Questionable
+```
+
+or pass `--out "Name" ...` for a one-off. `--no-injuries` switches it off.
+
 ## Commands
 
 | command | what it does |
@@ -54,6 +84,9 @@ rebuilds) before `predict` or `picks`.
 | `predict [--days N]` | win probability, fair odds, fair spread and total for upcoming games |
 | `picks` | live odds from The Odds API, edge (EV) per market, Kelly stakes; saves `reports/picks_*.csv` and the full board |
 | `props GAME_ID` | player projections (minutes, PTS, REB, AST, 3PM, PRA), probabilities for lines you give |
+| `injuries` | the injury list the model uses (auto-downloaded; manual overrides in `data/injuries/manual.csv`) |
+| `closing [--window MIN]` | record closing odds for logged bets tipping off soon; computes CLV |
+| `track [--show N]` | settle finished bets; profit, ROI and closing-line value report |
 | `odds-history --season Y` | historical pre-game odds for a backtest (paid Odds API plan) |
 
 Useful options for `picks`: `--min-edge 0.04`, `--kelly 0.25`,
@@ -86,7 +119,9 @@ tries anyway and tells you if nothing comes back.
 **Game model**: projected margin and total start from the efficiency
 projection (`pts = efficiency × pace / 100`); a heavily shrunk ridge regression
 then corrects them with Elo, rest (EuroLeague double-round weeks), neutral venue,
-playoff phase and early-season flags. It is retrained each season on earlier
+playoff phase, early-season flags and **player availability** (the summed
+value of absent rotation players, from PIR per minute above replacement level
+times expected minutes; learned from 15 seasons of who actually played). It is retrained each season on earlier
 seasons only. Outcomes are normal with the residual SD (≈12 points for margin,
 ≈17 for total), discretised to whole points so whole-number lines get a correct
 push probability and a tied margin is impossible (overtime).
@@ -110,10 +145,10 @@ tuned on 2014-17, so 2018 onward is a genuine out-of-sample check.
 
 | metric | model | Elo only | always "home team p" |
 |---|---|---|---|
-| winner accuracy | 65.8% | | |
-| log loss (lower is better) | **0.610** | 0.621 | 0.662 |
+| winner accuracy | 66.1% | | |
+| log loss (lower is better) | **0.6097** | 0.621 | 0.662 |
 | Brier score | 0.212 | | |
-| margin MAE (points) | 9.28 | | |
+| margin MAE (points) | 9.27 | | |
 | total MAE (points) | **13.20** | | 13.84 (recent league average) |
 
 Win probabilities are well calibrated: games priced 60-70% were won 65.3% of
@@ -128,8 +163,10 @@ None of this shows the model beats bookmakers: that needs odds. See below.
 
 ## Limitations and honest caveats
 
-* The model knows only EuroLeague games: no domestic-league fatigue, injuries,
-  line-ups or travel. Check team news and use `--exclude` for props.
+* The model knows only EuroLeague games: no domestic-league fatigue or travel.
+  Injuries come from a news feed and can lag late scratches; check line-ups.
+* Totals are the weakest market: the model disagrees with bookmakers by 6-10
+  points on some games. Use `--market-weight 0.5` or higher until CLV says otherwise.
 * Season starts are the weakest period: ratings come from last season while
   rosters have changed.
 * A good backtest log loss does not mean the model beats bookmakers. Prove that

@@ -8,8 +8,9 @@ import numpy as np
 import pandas as pd
 
 from . import config, dataset
+from .availability import AvailabilityModel
 from .config import SETTINGS, Settings
-from .features import build_features
+from .features import build_features, set_availability
 from .models import GameModel, fair_spread, fair_total
 from .props import PROP_STATS, PropsModel, recent_roster
 
@@ -17,6 +18,7 @@ FEATURES_PATH = config.PROCESSED_DIR / "features.csv"
 GAME_MODEL_PATH = config.MODEL_DIR / "game_model.pkl"
 PROPS_MODEL_PATH = config.MODEL_DIR / "props_model.pkl"
 PROPS_HISTORY_PATH = config.PROCESSED_DIR / "props_history.csv"
+AVAIL_MODEL_PATH = config.MODEL_DIR / "availability.pkl"
 
 
 def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
@@ -25,8 +27,11 @@ def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
     cutoff = pd.Timestamp.now(tz="UTC").tz_convert(None) - pd.Timedelta(days=2)
     games = games[games["played"] | (games["date"] > cutoff)].reset_index(drop=True)
     dataset.save_tables(games, players)
-    feats = build_features(games, settings)
+    avail = AvailabilityModel()
+    feats = build_features(games, settings, players, avail)
     feats.to_csv(FEATURES_PATH, index=False)
+    config.MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    AVAIL_MODEL_PATH.write_bytes(pickle.dumps(avail))
 
     game_model = GameModel().fit(feats)
     game_model.save(GAME_MODEL_PATH)
@@ -52,6 +57,64 @@ def load_props_model() -> PropsModel:
     if not PROPS_MODEL_PATH.exists():
         raise FileNotFoundError("props model missing; run `elbet build` first")
     return pickle.loads(PROPS_MODEL_PATH.read_bytes())
+
+
+def load_availability() -> AvailabilityModel:
+    if not AVAIL_MODEL_PATH.exists():
+        raise FileNotFoundError("availability model missing; run `elbet build` first")
+    return pickle.loads(AVAIL_MODEL_PATH.read_bytes())
+
+
+def match_player(name: str, candidates: pd.Series) -> str | None:
+    """Match 'Sasha Vezenkov' / 'VEZENKOV, SASHA' / 'Vezenkov' to one of `candidates`."""
+    from .odds import _norm
+
+    toks = {t for t in _norm(name).split() if len(t) > 1}
+    best, score = None, 0.0
+    for c in candidates:
+        ctoks = set(_norm(c).split())
+        s = len(toks & ctoks) / max(1, len(toks))
+        if s > score:
+            best, score = c, s
+    return best if score >= 0.5 else None
+
+
+def apply_absences(up: pd.DataFrame, injuries: pd.DataFrame | None = None,
+                   out_names: list[str] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Set availability features of upcoming games from the injury feed and `--out`.
+
+    Returns (updated features, table of matched absent players)."""
+    from .injuries import absences_for_team
+
+    up = up.copy()
+    extra = {n: 1.0 for n in (out_names or [])}
+    if (injuries is None or injuries.empty) and not extra:
+        return up, pd.DataFrame()
+    avail = load_availability()
+    report = []
+    for i, g in up.iterrows():
+        for side in ("home", "away"):
+            absent = {}
+            if injuries is not None and not injuries.empty:
+                absent.update(absences_for_team(injuries, g[f"{side}_names"]))
+            absent.update(extra)
+            value, miss = avail.missing_for(g[side], int(g["season"]), absent, match_player)
+            up.at[i, f"missing_{side}"] = value
+            if not miss.empty:
+                report.append(miss.assign(team=g[side], game_id=g["game_id"]))
+    set_availability(up)
+    return up, (pd.concat(report, ignore_index=True) if report else pd.DataFrame())
+
+
+def questionable(up: pd.DataFrame) -> pd.DataFrame:
+    """Rotation players who missed their team's most recent game (check their status)."""
+    avail = load_availability()
+    rows = []
+    for team in pd.unique(pd.concat([up["home"], up["away"]])):
+        season = int(up["season"].max())
+        rot = avail.rotation(team, season)
+        rows.append(rot[rot["games_since"] >= 1].assign(team=team))
+    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
 
 
 def upcoming(feats: pd.DataFrame, days: float, now: pd.Timestamp | None = None) -> pd.DataFrame:

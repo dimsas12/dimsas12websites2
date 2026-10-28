@@ -145,3 +145,39 @@ def test_simulate_bets_one_per_game():
     bets, summary = simulate_bets(pred, odds, BetConfig())
     assert len(bets) == 1 and bets.iloc[0]["won"]
     assert summary.set_index("market").loc["ALL", "bets"] == 1
+
+
+def test_injury_feed_parser_handles_clean_clubs():
+    from elbet.injuries import parse_feed, status_weight
+
+    def block(team, rows):
+        tbl = "" if not rows else '<table class="bs-inj"><tbody>' + "".join(
+            f"<tr><td><a>{p}</a></td><td><span>{s}</span></td><td>x</td><td>&ndash;</td></tr>"
+            for p, s in rows) + "</tbody></table>"
+        return (f'<div class="bs-team-block bs-inj-club" id="{team}"><h3 class="bs-team-title">'
+                f"<a>{team}</a></h3>{tbl}</div>")
+    page = ("<p>updated 28 October 2026</p>" + block("Bayern", [])
+            + block("Besiktas", [("Devon Dotson", "Out"), ("Lonnie Walker", "Day to day")]))
+    df = parse_feed(page)
+    assert list(df["team"]) == ["Besiktas", "Besiktas"]
+    assert df["updated"].iloc[0] == "28 October 2026"
+    assert status_weight("Out") == 1.0 and status_weight("Cleared") == 0.0
+    assert status_weight("Day to day") == 0.5
+
+
+def test_settle_and_clv():
+    from elbet import tracking
+    log = pd.DataFrame([
+        {"game_id": "g1", "market": "spread", "selection": "home", "line": -3.5, "odds": 1.9,
+         "stake": 10.0, "result": np.nan},
+        {"game_id": "g1", "market": "total", "selection": "under", "line": 160.0, "odds": 1.9,
+         "stake": 10.0, "result": np.nan},
+        {"game_id": "g1", "market": "moneyline", "selection": "away", "line": np.nan,
+         "odds": 2.5, "stake": 10.0, "result": np.nan},
+    ])
+    games = pd.DataFrame([{"game_id": "g1", "played": True, "home_pts": 85, "away_pts": 75}])
+    out = tracking.settle(log, games)
+    assert list(out["result"]) == ["win", "push", "loss"]
+    assert list(out["profit"]) == [9.0, 0.0, -10.0]
+    # Bet at 2.10 on a side that closed at a fair 50%: +5% CLV.
+    assert tracking.clv(0.5, 0.0, 2.10) == pytest.approx(0.05)
