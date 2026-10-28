@@ -374,6 +374,10 @@ def cmd_props(args):
     print(f"{game['home']} vs {game['away']}  ({game['date']:%a %d %b %H:%M})  "
           f"predicted {game['pred_home_pts']:.1f}-{game['pred_away_pts']:.1f}, "
           f"pace {game['pace_exp']:.1f}")
+    out_players = proj.loc[proj["p_play"] <= 0, "player"].tolist()
+    if out_players:
+        print("ruled out (not projected):", ", ".join(out_players))
+    proj = proj[proj["p_play"] > 0]
     show = proj[["team", "player", "p_play", "exp_min"]].copy()
     for s in PROP_STATS:
         show[s] = proj[s]

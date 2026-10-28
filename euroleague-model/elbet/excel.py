@@ -353,7 +353,8 @@ def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
     _title(ws, "Player prop projections",
            "Projections are IF THE PLAYER PLAYS (how books settle props). Chance plays = recent "
            "appearance rate x (1 - injury probability). SD and P(over) include minutes and "
-           "shooting-rate uncertainty. Check rows: listed players normally cover ~194-197 of a "
+           "shooting-rate uncertainty. Ruled-out players are listed in grey under each team with "
+           "no projection and are not in the totals. Check rows: listed players normally cover ~194-197 of a "
            "team's ~201 minutes, and less with many absences (history: ~180 with 4 out) because "
            "call-ups and returning players without recent games take the rest; their points "
            "are compared with the game model's score (forcing them equal tested worse).")
@@ -366,7 +367,10 @@ def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
     if allprops.empty:
         return
     r = 5
-    for (game, team), d in allprops.groupby(["game", "team"], sort=False):
+    grey = _f(color="808080", italic=True)
+    for (game, team), d_all in allprops.groupby(["game", "team"], sort=False):
+        d = d_all[d_all["p_play"] > 0]
+        ruled_out = d_all[d_all["p_play"] <= 0]
         first = r
         for p in d.sort_values("exp_min", ascending=False).itertuples(index=False):
             _cell(ws, r, 1, game)
@@ -391,7 +395,20 @@ def _sheet_props(ws, pred, allprops: pd.DataFrame) -> None:
         _cell(ws, r + 1, 5, round(float(d["team_pts"].iloc[0]), 1), "0.0", color=BLUE,
               bold=True)
         _cell(ws, r + 1, 7, f"=SUMPRODUCT(D{first}:D{last},G{first}:G{last})", "0.0", bold=True)
-        r += 3
+        r += 2
+        # Players ruled out: listed for reference only, no projections, not in the totals.
+        for p in ruled_out.sort_values("base_min", ascending=False).itertuples(index=False):
+            for col, v in ((1, game), (2, team), (3, p.player),
+                           (5, round(p.base_min, 1)), (6, round(p.p_out, 2)),
+                           (7, "Ruled out (injury report): no projection")):
+                c = ws.cell(row=r, column=col, value=v)
+                c.font = grey
+                if col == 5:
+                    c.number_format = "0.0"
+                if col == 6:
+                    c.number_format = "0%"
+            r += 1
+        r += 1
     ws.freeze_panes = "D5"
 
 
@@ -405,7 +422,8 @@ def _sheet_ladder(ws, allprops: pd.DataFrame, props_model) -> int:
                "Fair over odds", "Fair under odds"]
     _header(ws, 4, headers, [30, 10, 6, 24, 6, 7, 9, 9, 10, 10])
     r = 5
-    for p in allprops.itertuples(index=False):
+    playing = allprops[allprops["p_play"] > 0] if not allprops.empty else allprops
+    for p in playing.itertuples(index=False):
         for st in ("pts", "reb", "ast", "fgm3", "pra"):
             mean = getattr(p, st)
             for line in ladder_lines(mean, st):
@@ -437,7 +455,8 @@ def _sheet_checker(ws, allprops: pd.DataFrame, ladder_last: int) -> None:
     keys = f"'Prop ladder'!$A$5:$A${ladder_last}"
     pover = f"'Prop ladder'!$G$5:$G${ladder_last}"
     punder = f"'Prop ladder'!$H$5:$H${ladder_last}"
-    names = sorted(allprops["player"].unique()) if not allprops.empty else []
+    names = sorted(allprops.loc[allprops["p_play"] > 0, "player"].unique()) \
+        if not allprops.empty else []
     ws.cell(row=4, column=14, value="Players").font = _f(bold=True)
     for i, n in enumerate(names, 5):
         ws.cell(row=i, column=14, value=n).font = _f()
@@ -449,7 +468,7 @@ def _sheet_checker(ws, allprops: pd.DataFrame, ladder_last: int) -> None:
     ws.add_data_validation(sv)
     example = None
     if not allprops.empty:
-        top = allprops.sort_values("pts", ascending=False).iloc[0]
+        top = allprops[allprops["p_play"] > 0].sort_values("pts", ascending=False).iloc[0]
         example = (top["player"], "pts", float(top["pts_line"]), 1.87, 1.93)
     for r in range(5, 25):
         vals = example if (r == 5 and example) else (None,) * 5
