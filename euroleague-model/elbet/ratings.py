@@ -112,8 +112,7 @@ def _solve_efficiency(hist: pd.DataFrame, weights: np.ndarray, cfg: RatingConfig
 
 
 def efficiency_ratings(games: pd.DataFrame, cfg: RatingConfig) -> pd.DataFrame:
-    """Pre-game efficiency ratings for every game in `games` (played or not)."""
-    games = games.sort_values("date")
+    """Pre-game efficiency ratings for every game in `games` (played or not), in input order."""
     played = games[games["played"]].copy()
     played["day"] = played["date"].dt.normalize()
     out = {}

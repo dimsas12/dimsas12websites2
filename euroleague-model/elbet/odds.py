@@ -29,6 +29,14 @@ _STOP = {"bc", "kk", "bk", "fc", "sk", "cb", "basket", "basketball", "club", "th
          "de", "s.a.d", "sad"}
 
 
+# Bookmaker names that share no words with the official club name.
+_ALIASES = {
+    "red star": "crvena zvezda", "milano": "milan", "olimpia": "armani",
+    "olympiakos": "olympiacos", "zvezda belgrade": "zvezda", "efes": "anadolu efes",
+    "fener": "fenerbahce",
+}
+
+
 class OddsApiError(RuntimeError):
     pass
 
@@ -102,7 +110,10 @@ def flatten(events: list[dict]) -> pd.DataFrame:
 def _norm(name: str) -> str:
     name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
     toks = [t for t in re.split(r"[^a-z0-9]+", name) if t and t not in _STOP]
-    return " ".join(toks)
+    out = " ".join(toks)
+    for alias, canon in _ALIASES.items():
+        out = re.sub(rf"\b{alias}\b", canon, out)
+    return out
 
 
 def name_similarity(a: str, b_names: str) -> float:
