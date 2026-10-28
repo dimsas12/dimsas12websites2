@@ -19,7 +19,7 @@
 const W = 1080, H = 1920;
 const C = {
   bg: '#05070F', bg2: '#0A1024', blue: '#0A84FF', blueHi: '#4DA8FF', blueDeep: '#0645B8',
-  white: '#F5F7FB', grey: '#8A93A8', dim: '#2A3248', red: '#FF3B4E', draw: '#5B6478'
+  white: '#F5F7FB', grey: '#8A93A8', dim: '#2A3248', red: '#FF3B4E', draw: '#5B6478', green: '#22D36B'
 };
 const FONT = 'Inter, "Inter Display", sans-serif';
 const TR = 0.36;            // transition length (s) for the 2D transitions
@@ -531,7 +531,8 @@ function sCalled(t, a, b, s) {
   const c1 = cue(s, a, 1, 1.8);
   // pre-game card: on screen from frame 0
   const lift = p(t, c1, c1 + .35, easeOutExpo);
-  ctx.save(); ctx.translate(W / 2, lerp(760, 560, lift)); const z = lerp(1, .78, lift); ctx.scale(z, z);
+  const y1 = s.result ? 560 : 820;   // with no result line underneath, the card stays centred
+  ctx.save(); ctx.translate(W / 2, lerp(760, y1, lift)); const z = lerp(1, s.result ? .78 : 1.05, lift); ctx.scale(z, z);
   rrect(-430, -250, 860, 500, 44); ctx.fillStyle = 'rgba(16,24,48,.92)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 3; ctx.stroke();
   pill(tx(s.tag), -230, -170, 26, 1, { fill: 'rgba(255,255,255,.08)', line: C.white });
@@ -543,17 +544,19 @@ function sCalled(t, a, b, s) {
   // stamp
   const sk = p(t, c1 + .05, c1 + .3, easeOutExpo);
   if (sk > 0) {
-    ctx.save(); ctx.translate(W / 2 + 140, lerp(760, 560, lift) + 150); ctx.rotate(-.14);
+    const sy = lerp(760, y1, lift) + (s.result ? 150 : 250);   // below the call text, never over it
+    ctx.save(); ctx.translate(W / 2 + 140, sy); ctx.rotate(-.14);
     const zz = lerp(3, 1, sk); ctx.scale(zz, zz); ctx.globalAlpha *= clamp(sk * 2);
-    rrect(-250, -75, 500, 150, 22); ctx.fillStyle = 'rgba(10,132,255,.25)'; ctx.fill();
-    ctx.strokeStyle = C.blue; ctx.lineWidth = 10; glow(C.blue, 40); ctx.stroke(); noGlow();
+    const sc = s.win ? C.green : C.blue;
+    rrect(-250, -75, 500, 150, 22); ctx.fillStyle = s.win ? 'rgba(34,211,107,.22)' : 'rgba(10,132,255,.25)'; ctx.fill();
+    ctx.strokeStyle = sc; ctx.lineWidth = 10; glow(sc, 40); ctx.stroke(); noGlow();
     text('✓ ' + tx(s.stamp), 0, 4, 74, { italic: true });
     ctx.restore();
-    shock(t, c1 + .3, W / 2 + 140, 710, 140, 760);
-    burst(t, c1 + .3, W / 2 + 140, 710, 40);
+    shock(t, c1 + .3, W / 2 + 140, sy, 140, 760, s.win ? C.green : C.blue);
+    burst(t, c1 + .3, W / 2 + 140, sy, 40, s.win ? C.green : C.blue);
   }
   // the result underneath
-  const rk = p(t, c1 + .4, c1 + .75, easeBack);
+  const rk = s.result ? p(t, c1 + .4, c1 + .75, easeBack) : 0;
   if (rk > 0) {
     ctx.save(); ctx.translate(W / 2, 1230); ctx.scale(rk, rk);
     text(tx(s.resultLabel), 0, -110, 32, { weight: 800, color: C.blue, spacing: 6 });
@@ -591,9 +594,9 @@ function sQuarters(t, a, b, s) {
   // running lead line
   let lead = 0;
   const pts = qs.map((q, i) => { lead += q[0] - q[1]; return [x0 + slot * (i + .5), lead]; });
-  const ly = v => 1420 - v * 8;
+  const ly = v => 1440 - v * 8;
   const lk = p(t, a + .6, a + 2.2, easeInOut);
-  text(tx(s.leadLabel), W / 2, 1150, 30, { weight: 800, color: C.grey, spacing: 4, alpha: lk });
+  text(tx(s.leadLabel), W / 2, 1185, 30, { weight: 800, color: C.grey, spacing: 4, alpha: lk });
   ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(x0, ly(0)); ctx.lineTo(x1, ly(0)); ctx.stroke(); ctx.restore();
   ctx.save(); ctx.beginPath();
@@ -614,7 +617,7 @@ function sQuarters(t, a, b, s) {
   });
   const hk = p(t, cue(s, a, (s.cues || [0, 0]).length - 1, 2.6), cue(s, a, (s.cues || [0, 0]).length - 1, 2.6) + .25, easeOutExpo);
   if (hk > 0) {
-    ctx.save(); ctx.translate(W / 2, 1530); ctx.rotate(-.04); const z = lerp(2.4, 1, hk); ctx.scale(z, z); ctx.globalAlpha *= clamp(hk * 2);
+    ctx.save(); ctx.translate(W / 2, 1500); ctx.rotate(-.04); const z = lerp(2.4, 1, hk); ctx.scale(z, z); ctx.globalAlpha *= clamp(hk * 2);
     pill(tx(s.verdict), 0, 0, 52, 1, { fill: C.blue, line: C.blue });
     ctx.restore();
   }
@@ -631,20 +634,54 @@ function sChecklist(t, a, b, s) {
     const ck = p(t, t0, t0 + .25, easeBack);
     ctx.save(); ctx.translate((1 - k) * W * (i % 2 ? 1 : -1), 0); ctx.globalAlpha *= clamp(k * 2);
     rrect(80, y, W - 160, 200, 34);
-    ctx.fillStyle = ck > 0 ? 'rgba(10,132,255,.16)' : 'rgba(255,255,255,.04)'; ctx.fill();
-    ctx.strokeStyle = ck > 0 ? C.blue : 'rgba(255,255,255,.15)'; ctx.lineWidth = 3; ctx.stroke();
+    const on = s.win ? C.green : C.blue;
+    ctx.fillStyle = ck > 0 ? (s.win ? 'rgba(34,211,107,.14)' : 'rgba(10,132,255,.16)') : 'rgba(255,255,255,.04)'; ctx.fill();
+    ctx.strokeStyle = ck > 0 ? on : 'rgba(255,255,255,.15)'; ctx.lineWidth = 3; ctx.stroke();
     // tick box
     ctx.beginPath(); ctx.arc(190, y + 100, 52, 0, Math.PI * 2);
-    ctx.fillStyle = ck > 0 ? C.blue : 'rgba(255,255,255,.06)'; if (ck > 0) glow(C.blue, 35); ctx.fill(); noGlow();
+    ctx.fillStyle = ck > 0 ? on : 'rgba(255,255,255,.06)'; if (ck > 0) glow(on, 35); ctx.fill(); noGlow();
     if (ck > 0) {
       ctx.save(); ctx.translate(190, y + 100); ctx.scale(ck, ck);
       ctx.strokeStyle = C.white; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath(); ctx.moveTo(-22, 2); ctx.lineTo(-6, 20); ctx.lineTo(24, -18); ctx.stroke(); ctx.restore();
     }
-    text(tx(it.head), 280, y + 72, fitSize(tx(it.head), 680, 50), { align: 'left', italic: true });
-    text(tx(it.proof), 280, y + 138, fitSize(tx(it.proof), 680, 30, 700, false), { align: 'left', weight: 700, color: ck > 0 ? C.blue : C.grey, spacing: 2 });
+    text(tx(it.head), 280, y + 68, fitSize(tx(it.head), 680, 56), { align: 'left', italic: true });
+    text(tx(it.proof), 280, y + 140, fitSize(tx(it.proof), 680, 38, 800, false), { align: 'left', weight: 800, color: ck > 0 ? on : C.grey, spacing: 1 });
     ctx.restore();
   });
+}
+
+// --- payoff: cold open on the result. "We needed X" -> a counter races to the real number
+function sPayoff(t, a, b, s) {
+  const c1 = cue(s, a, 1, 1.1);
+  text(tx(s.kicker), W / 2, 380, 40, { weight: 900, color: C.blue, spacing: 8 });
+  // what we needed (struck once the real number lands)
+  const done = p(t, c1 + .55, c1 + .75);
+  ctx.save(); ctx.translate(W / 2, 560);
+  text(tx(s.neededLabel), -150, 0, 46, { italic: true, color: C.grey });
+  text(s.needed, 190, 0, 110, { italic: true, color: done > 0 ? C.grey : C.white });
+  if (done > 0) {
+    ctx.strokeStyle = C.red; ctx.lineWidth = 14; ctx.lineCap = 'round'; glow(C.red, 25);
+    ctx.beginPath(); ctx.moveTo(110, 30); ctx.lineTo(lerp(110, 280, done), lerp(30, -30, done)); ctx.stroke();
+  }
+  ctx.restore();
+  // the counter: scrambles until the cue, then races up and slams
+  const run = p(t, c1, c1 + .55, easeOut), f = Math.floor(t * 24);
+  const val = t < c1 ? '+' + String(10 + Math.floor(rnd(f) * 89)).slice(0, 2) : '+' + Math.round(s.value * run);
+  const land = t > c1 + .55 ? 1 + .18 * Math.max(0, 1 - (t - c1 - .55) / .25) : 1;
+  ctx.save(); ctx.translate(W / 2, 960); ctx.scale(land, land);
+  glow(t < c1 ? C.white : C.green, 80);
+  text(t < c1 ? '+??' : val, 0, 0, 400, { italic: true, color: t < c1 ? C.white : C.green, alpha: t < c1 ? .85 + .15 * Math.sin(t * 20) : 1 });
+  ctx.restore();
+  text(tx(s.valueLabel), W / 2, 1200, 40, { weight: 900, color: C.grey, spacing: 6, alpha: p(t, c1 + .5, c1 + .8) });
+  shock(t, c1 + .55, W / 2, 960, 160, 900, C.green);
+  burst(t, c1 + .55, W / 2, 960, 50, C.green);
+  const hk = p(t, c1 + .7, c1 + .95, easeOutExpo);
+  if (hk > 0) {
+    ctx.save(); ctx.translate(W / 2, 1380); ctx.rotate(-.06); const z = lerp(2.6, 1, hk); ctx.scale(z, z); ctx.globalAlpha *= clamp(hk * 2);
+    pill('✓ ' + tx(s.stamp), 0, 0, 64, 1, { fill: C.green, line: C.green, color: '#04120A' });
+    ctx.restore();
+  }
 }
 
 // --- boot: a cold-open "archive" boot-up that hands over to the clip with a flash
@@ -973,12 +1010,13 @@ function sOutro(t, a, b, s) {
   if (s.disclaimer !== false) text('18+ · PLAY RESPONSIBLY', W / 2, 1490, 28, { weight: 700, color: C.grey, spacing: 4, alpha: p(t, a + 1.4, a + 1.7) });
 }
 
-const SCENES = { boot: sBoot, called: sCalled, quarters: sQuarters, checklist: sChecklist, gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
+const SCENES = { payoff: sPayoff, boot: sBoot, called: sCalled, quarters: sQuarters, checklist: sChecklist, gauge: sGauge, margins: sMargins, schedule: sSchedule, players: sPlayers, scoreboard: sScoreboard, teaser: sTeaser, hook: sHook, versus: sVersus, duel: sDuel, totals: sTotals, numbers: sNumbers, model: sModel, pick: sPick, outro: sOutro };
 // moments that get camera shake + flash + an impact sound
 const IMPACTS = {
   teaser: (s, a) => [cue(s, a, 1, 1.4) + .32, cue(s, a, 2, 2.2) + .15],
   gauge: (s, a) => [cue(s, a, 1, 1.8) + .5],
   called: (s, a) => [cue(s, a, 1, 1.8) + .3],
+  payoff: (s, a) => [cue(s, a, 1, 1.1) + .55],
   boot: (s, a) => [a + .7],   // the logo landing; nothing over the voice
   quarters: (s, a) => [cue(s, a, (s.cues || [0, 0]).length - 1, 2.6) + .2],
   checklist: (s, a) => s.items.map((_, i) => cue(s, a, i + 1 + (s.cueOffset ?? 0), .9 + i * .8) + .45),   // after the first word, so names stay clear
@@ -1226,6 +1264,7 @@ function overlays(t) {
     logo(84, 110, 64, 1, 1, 0);
     text('SVA CONSULT', 140, 104, 28, { align: 'left', spacing: 4 });
     main.restore();
+    if (D.badge) pill(tx(D.badge), W - 200, 106, 26, p(t, .2, .5, easeBack), { fill: 'rgba(34,211,107,.18)', line: C.green });
   }
   // vignette + grain
   const g = main.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .78);

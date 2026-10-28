@@ -1,0 +1,115 @@
+{
+  "competition": "EUROLEAGUE · ROUND 8",
+  "home": {
+    "en": "ZVEZDA",
+    "full": "CRVENA ZVEZDA",
+    "short": "Zvezda",
+    "record": "5-3"
+  },
+  "away": {
+    "en": "MACCABI",
+    "full": "MACCABI TEL AVIV",
+    "short": "Maccabi"
+  },
+  "voiceSpeed": 1.2,
+  "badge": "✓ CALLED IT",
+  "transitions": [
+    "flash-through-white",
+    "whip-pan",
+    "ridged-burn",
+    "cinematic-zoom"
+  ],
+  "scenes": [
+    {
+      "type": "payoff",
+      "dur": 2.4,
+      "lead": 0.1,
+      "voice": "We needed five. They won by twenty-two.",
+      "kicker": "LAST NIGHT'S CALL",
+      "neededLabel": "WE NEEDED",
+      "needed": "+5",
+      "value": 22,
+      "valueLabel": "FINAL · 100 – 78",
+      "stamp": "HIT"
+    },
+    {
+      "type": "called",
+      "dur": 2.4,
+      "lead": 0.1,
+      "voice": "Before tip-off, we said they'd control it... They didn't just control it. They destroyed it.",
+      "tag": "PRE-GAME",
+      "date": "27.10",
+      "label": "OUR CALL",
+      "call": "ZVEZDA BY 5+",
+      "matchup": "CRVENA ZVEZDA vs MACCABI · EUROLEAGUE R8",
+      "stamp": "CALLED IT",
+      "win": true
+    },
+    {
+      "type": "quarters",
+      "dur": 2.4,
+      "voice": "And here's the crazy part. Thirty-four to fifteen after one. Fifty-five to thirty at the half. Game over.",
+      "title": "HOW IT HAPPENED",
+      "subtitle": "POINTS BY QUARTER",
+      "home": "ZVEZDA",
+      "away": "MACCABI",
+      "quarters": [
+        [
+          34,
+          15
+        ],
+        [
+          21,
+          15
+        ],
+        [
+          23,
+          25
+        ],
+        [
+          22,
+          23
+        ]
+      ],
+      "max": 40,
+      "leadLabel": "ZVEZDA LEAD",
+      "verdict": "GAME OVER AT HALF",
+      "cueOffset": 1
+    },
+    {
+      "type": "checklist",
+      "dur": 2.4,
+      "voice": "Why? Every part of our read landed. The bounce-back. The home crowd. The scorer back. The new big man.",
+      "title": "THE READ, CHECKED",
+      "items": [
+        {
+          "head": "BOUNCE-BACK SPOT",
+          "proof": "AFTER AN 82-85 OT DERBY LOSS"
+        },
+        {
+          "head": "BELGRADE HOME COURT",
+          "proof": "34-15 FIRST QUARTER"
+        },
+        {
+          "head": "NWORA AVAILABLE",
+          "proof": "18 POINTS"
+        },
+        {
+          "head": "KOLOKO AT THE RIM",
+          "proof": "STARTED AT CENTER ON DEBUT"
+        }
+      ],
+      "cueOffset": 1,
+      "win": true
+    },
+    {
+      "type": "outro",
+      "dur": 2,
+      "lead": 0.8,
+      "tail": 0.4,
+      "voice": "Next call drops before tip-off. Follow so you don't miss it.",
+      "cta": "FOLLOW · NEXT CALL BEFORE TIP-OFF",
+      "disclaimer": false
+    }
+  ]
+}
