@@ -1,0 +1,3 @@
+logged_at,game_id,event_id,commence,game,market,selection,pick,line,odds,book,model_p,market_p,p_push,ev,stake,close_at,close_line,close_odds,close_p,clv,result,profit,profit_flat
+2026-10-28 14:43:02,E2026_79,29cfcc96f42a4c0c626d1b6c93ab212a,2026-10-28 17:30:00,BES-OLY,total,over,over,170.5,1.91,sport888,0.592300112088701,0.507308885564381,0.0,0.1312932140894189,30.0,2026-10-28 16:54:21,172.5,1.95,0.5509255494417068,0.0522677994336598,loss,-30.0,-1.0
+2026-10-28 14:43:02,E2026_80,ada0302f82b6f8291cd76ff00568358e,2026-10-28 19:30:00,VIR-ZAL,moneyline,away,ZAL,,2.064,betfair_ex_eu,0.5061492274374119,0.4722054463416301,0.0,0.044692005430818,10.5,,,,,,win,11.17,1.064

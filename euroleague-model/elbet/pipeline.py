@@ -24,6 +24,16 @@ PLAY_MODEL_PATH = config.MODEL_DIR / "play_clf.pkl"
 PEOPLE_PATH = config.PROCESSED_DIR / "people.csv"
 
 
+def team_margins(feats: pd.DataFrame) -> dict[tuple, float]:
+    """{(game_id, team): pre-game rating margin from that team's side} (blowout risk)."""
+    out = {}
+    for gid, h, a, m in zip(feats["game_id"], feats["home"], feats["away"],
+                            feats["rating_margin"]):
+        if pd.notna(m):
+            out[(gid, h)], out[(gid, a)] = float(m), -float(m)
+    return out
+
+
 def load_people() -> pd.DataFrame:
     """Season rosters with positions (fetched by `elbet fetch`)."""
     return pd.read_csv(PEOPLE_PATH) if PEOPLE_PATH.exists() else pd.DataFrame()
@@ -39,7 +49,7 @@ def predict_minutes(games: pd.DataFrame, players: pd.DataFrame,
     up = []
     for g in games.itertuples(index=False):
         up += [(g.game_id, g.home, int(g.season), True), (g.game_id, g.away, int(g.season), False)]
-    ds = minutes.build_dataset(players, absences, up, load_people())
+    ds = minutes.build_dataset(players, absences, up, load_people(), team_margins(games))
     ds = ds[ds["played"].isna()].copy()
     ds["pred_min"] = np.clip(model.predict(ds[minutes.FEATURES]), 0, 40)
     ds["played_last"] = (ds["last1"] > 0).astype(float)
@@ -76,7 +86,7 @@ def build(seasons: list[int], settings: Settings = SETTINGS) -> dict:
     game_model.save(GAME_MODEL_PATH)
     from . import minutes
     people = load_people()
-    mds = minutes.build_dataset(players, people=people)
+    mds = minutes.build_dataset(players, people=people, margins=team_margins(feats))
     MINUTES_MODEL_PATH.write_bytes(pickle.dumps(minutes.train(mds)))
     PLAY_MODEL_PATH.write_bytes(pickle.dumps(minutes.train_play(mds)))
     history.to_csv(PROPS_HISTORY_PATH, index=False)

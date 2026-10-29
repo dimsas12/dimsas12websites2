@@ -19,7 +19,7 @@ from scipy.optimize import brentq
 from . import config
 from .models import spread_probs, total_probs
 
-TRACK_DIR = config.DATA_DIR / "tracking"
+TRACK_DIR = config.HISTORY_DIR
 LOG_PATH = TRACK_DIR / "bets.csv"
 
 LOG_COLUMNS = [

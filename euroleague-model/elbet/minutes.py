@@ -30,7 +30,8 @@ ROTATION_MIN = 15.0
 DECAY = 0.88
 FEATURES = ["base_min", "last1", "avg3", "ctx_min", "ctx_weight", "gap", "gap_new",
             "share", "appear", "n_out", "team_base_sum", "is_home",
-            "pos_gap", "pos_gap_new", "pos_share", "pos_avail", "height", "position"]
+            "pos_gap", "pos_gap_new", "pos_share", "pos_avail", "height", "position",
+            "exp_margin", "abs_exp_margin"]
 
 
 class _Hist:
@@ -59,8 +60,11 @@ def _similarity(absent_now: dict[str, float], played_g: dict[str, float],
 
 def build_dataset(players: pd.DataFrame, absences: dict | None = None,
                   upcoming: list[tuple] | None = None,
-                  people: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Feature rows for every roster player in every played team-game (with the
+                  people: pd.DataFrame | None = None,
+                  margins: dict | None = None) -> pd.DataFrame:
+    """margins: {(game_id, team): pre-game expected margin for that team}.
+
+    Feature rows for every roster player in every played team-game (with the
     actual minutes as target). With `upcoming` = [(game_id, team, season, is_home)]
     and `absences` = {(game_id, team): {player_id: p_out}}, also rows for those games
     (target NaN) using all history."""
@@ -138,6 +142,10 @@ def build_dataset(players: pd.DataFrame, absences: dict | None = None,
                 "pos_gap": pos_gap, "pos_gap_new": pos_gap_new, "pos_share": pos_share,
                 "pos_avail": pos_avail, "height": hgt.get((season, pid), np.nan),
                 "position": my_pos,
+                # Pre-game expected margin from this team's side: blowouts (either way)
+                # send starters to the bench early.
+                "exp_margin": (margins or {}).get((gid, team), np.nan),
+                "abs_exp_margin": abs((margins or {}).get((gid, team), np.nan)),
                 "played": pid in played_now if played_now is not None else np.nan,
                 "min": played_now.get(pid, np.nan) if played_now is not None else np.nan,
             })

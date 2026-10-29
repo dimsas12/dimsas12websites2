@@ -68,6 +68,13 @@ def _solve_efficiency(hist: pd.DataFrame, weights: np.ndarray, cfg: RatingConfig
     poss = np.where(np.isfinite(poss) & (poss > 40), poss, cfg.default_pace)
     eff_h = 100.0 * hist["home_pts"].to_numpy(dtype=float) / poss
     eff_a = 100.0 * hist["away_pts"].to_numpy(dtype=float) / poss
+    if cfg.blowout_cap:
+        # Garbage time: margins beyond the cap count only partly (starters sit, the
+        # last minutes say little about team strength).
+        diff = eff_h - eff_a
+        excess = np.clip(np.abs(diff) - cfg.blowout_cap, 0, None)
+        shift = np.sign(diff) * excess * (1 - cfg.blowout_slope) / 2
+        eff_h, eff_a = eff_h - shift, eff_a + shift
     has_pace = np.isfinite(hist["poss"].to_numpy(dtype=float))
 
     # Parameters: [mu, hca, off_0..off_n-1, def_0..def_n-1]

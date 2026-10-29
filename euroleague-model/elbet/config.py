@@ -14,7 +14,10 @@ DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 MODEL_DIR = DATA_DIR / "models"
-ODDS_DIR = DATA_DIR / "odds"
+# Bet log and odds snapshots are kept in history/ (committed to git) so they survive and
+# accumulate into a historical odds dataset for tuning market weights later.
+HISTORY_DIR = ROOT / "history"
+ODDS_DIR = HISTORY_DIR / "odds"
 REPORTS_DIR = ROOT / "reports"
 
 FIRST_SEASON = 2012  # earliest season fetched by default
@@ -47,6 +50,10 @@ class RatingConfig:
     ridge_team: float = 6.0  # shrinkage of team ratings toward league average
     ridge_pace: float = 6.0
     default_pace: float = 72.0
+    # Garbage time: per-100 margins beyond 30 count half. Neutral on 2015-22, holdout
+    # 2023-26 log loss 0.6106 -> 0.6103, margin MAE 9.012 -> 9.007.
+    blowout_cap: float | None = 30.0
+    blowout_slope: float = 0.5  # share of the margin beyond the cap that still counts
 
 
 @dataclass

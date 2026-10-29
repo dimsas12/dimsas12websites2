@@ -213,6 +213,23 @@ selected on 2015-22 and reported on 2023-26 (walk-forward, see `elbet/experiment
 | A bet had no closing price | `closing` was never run before Virtus-Zalgiris | `picks` now prints when to run `elbet closing` for each tip-off |
 | Blowouts and coach's minutes decisions | Hapoel by 30; Evans/Reeves/Franks/Plotas minutes | normal noise, not fixable pre-game |
 
+## Second improvement round (29 Oct 2026)
+
+Tested (select on 2015-22, report 2023-26):
+
+| Idea | Result | Status |
+|---|---|---|
+| Expected margin in the minutes model (blowout risk: starters sit) | minutes MAE 4.420 -> 4.411; lopsided games 4.345 -> 4.317; starters 4.060 -> 4.035 | **adopted** |
+| Garbage-time damping in team ratings (per-100 margins beyond 30 count half) | neutral on 2015-22, holdout log loss 0.6106 -> 0.6103 | **adopted** |
+| Referee crews' scoring tendency (totals) | total MAE 13.139 -> 13.125 / 13.281 -> 13.276, but crews are not published before game day | not used yet |
+| Travel distance of the away team | slightly worse | rejected |
+| Team-specific home-court edge | worse on 2015-22 | rejected |
+
+Process: the bet log, odds snapshots and every `picks` board (model and market numbers
+side by side) are saved in `history/` (committed), and `elbet market-check` scores
+model vs market on settled games. After ~100 games that replaces the judgement-based
+market weights with measured ones.
+
 ## Limitations and honest caveats
 
 * The model knows only EuroLeague games: no domestic-league fatigue or travel.

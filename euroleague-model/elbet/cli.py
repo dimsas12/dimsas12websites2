@@ -206,6 +206,9 @@ def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
                 "ev": betting.expected_value(p, price, push),
                 "stake": betting.stake(p, price, args.bankroll, args.kelly,
                                        bet_cfg.max_stake_pct, push),
+                # pure model numbers, kept so `market-check` can score model vs market
+                "model_margin": g.pred_margin, "model_total": g.pred_total,
+                "model_p_home": g.p_home,
             })
     return pd.DataFrame(rows)
 
@@ -242,6 +245,9 @@ def cmd_picks(args):
     config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
     board.to_csv(config.REPORTS_DIR / f"markets_{stamp}.csv", index=False)
+    (config.HISTORY_DIR / "boards").mkdir(parents=True, exist_ok=True)
+    board.assign(snapshot=pd.Timestamp.now(tz="UTC").tz_convert(None).floor("s")).to_csv(
+        config.HISTORY_DIR / "boards" / f"board_{stamp}.csv", index=False)
     picks = board[(board["ev"] >= min_edge) & (board["model_p"] >= bet_cfg.min_prob)
                   & (board["odds"] <= bet_cfg.max_odds)]
     picks = picks.sort_values("ev", ascending=False)
@@ -339,6 +345,58 @@ def cmd_excel(args):
     path = excel.export(day, Path(args.out) if args.out else None,
                         fetch_injuries=not args.cached_injuries)
     print(f"wrote {path}")
+
+
+def cmd_market_check(args):
+    """Score the model against the market on settled games from saved boards.
+
+    For every game, the last saved board before tip-off gives the market's no-vig home
+    win probability, spread and total, next to the model's own (pre-blend) numbers.
+    Once enough games accumulate this says how much weight the model deserves."""
+    files = sorted((config.HISTORY_DIR / "boards").glob("board_*.csv"))
+    if not files:
+        print("no saved boards yet; every `elbet picks` run saves one")
+        return
+    b = pd.concat([pd.read_csv(f, parse_dates=["commence", "snapshot"]) for f in files])
+    b = b[b["snapshot"] < b["commence"]].sort_values("snapshot")
+    feats = pipeline.load_features().set_index("game_id")
+    rows = []
+    for gid, d in b.groupby("game_id"):
+        if gid not in feats.index or not feats.at[gid, "played"]:
+            continue
+        last = d[d["snapshot"] == d["snapshot"].max()]
+        g = feats.loc[gid]
+        ml = last[(last["market"] == "moneyline") & (last["selection"] == "home")]
+        sp = last[(last["market"] == "spread") & (last["selection"] == "home")]
+        to = last[(last["market"] == "total") & (last["selection"] == "over")]
+        rows.append({
+            "game_id": gid, "home_win": float(g["home_win"]), "margin": g["margin"],
+            "total": g["total"], "model_p": last["model_p_home"].iloc[0],
+            "market_p": ml["market_p"].iloc[0] if not ml.empty else np.nan,
+            "model_margin": last["model_margin"].iloc[0],
+            "market_margin": -sp["line"].iloc[0] if not sp.empty else np.nan,
+            "model_total": last["model_total"].iloc[0],
+            "market_total": to["line"].iloc[0] if not to.empty else np.nan,
+        })
+    r = pd.DataFrame(rows)
+    if r.empty:
+        print("no settled games with a saved pre-game board yet")
+        return
+
+    def ll(p, y):
+        p = np.clip(p, 1e-6, 1 - 1e-6)
+        return float(-np.mean(y * np.log(p) + (1 - y) * np.log(1 - p)))
+    ok = r.dropna(subset=["market_p"])
+    print(f"{len(r)} settled games with a pre-game board")
+    if not ok.empty:
+        print(f"win prob log loss  model {ll(ok.model_p, ok.home_win):.4f}  "
+              f"market {ll(ok.market_p, ok.home_win):.4f}")
+    for k in ("margin", "total"):
+        d = r.dropna(subset=[f"market_{k}"])
+        if not d.empty:
+            print(f"{k:6s} MAE  model {(d[k] - d[f'model_{k}']).abs().mean():.2f}  "
+                  f"market {(d[k] - d[f'market_{k}']).abs().mean():.2f}")
+    print("needs ~100+ games before the market weights should be changed")
 
 
 def cmd_injuries(args):
@@ -591,6 +649,9 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--out", help="output .xlsx path")
     sp.add_argument("--cached-injuries", action="store_true")
     sp.set_defaults(func=cmd_excel)
+
+    sp = sub.add_parser("market-check", help="score model vs market on settled games")
+    sp.set_defaults(func=cmd_market_check)
 
     sp = sub.add_parser("injuries", help="show the injury list used by the model")
     sp.add_argument("--cached", action="store_true", help="don't re-download")
