@@ -69,6 +69,13 @@ class BetConfig:
     max_odds: float = 6.0
     max_total_exposure: float = 0.20  # cap on the sum of stakes for one run of `picks`
     one_bet_per_game: bool = True  # moneyline/spread on the same side are highly correlated
+    # Weight of the no-vig market probability in the blend, per market. Sides: the model
+    # explains ~13% of margin variance and is calibrated, so model and market share 50/50.
+    # Totals: beyond the league average the model explains only ~9% of total variance
+    # (2015-26) and this season barely beats the league average, so a 6-point gap to the
+    # market is mostly model error: lean on the market. Revisit with CLV after 100+ bets.
+    market_weight: dict = field(default_factory=lambda: {
+        "moneyline": 0.5, "spread": 0.5, "total": 0.8})
 
 
 @dataclass

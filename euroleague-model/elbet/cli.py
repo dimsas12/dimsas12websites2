@@ -162,7 +162,12 @@ def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
     unmatched = flat["event_id"].nunique() - len(matches)
     if unmatched:
         print(f"warning: {unmatched} Odds API events could not be matched to the schedule")
-    w = args.market_weight
+    mw = dict(bet_cfg.market_weight)
+    if args.market_weight is not None:  # one weight for sides; totals keep theirs unless set
+        mw["moneyline"] = mw["spread"] = args.market_weight
+    if getattr(args, "total_market_weight", None) is not None:
+        mw["total"] = args.total_market_weight
+    w = mw["moneyline"]
     allowed = _allowed(args)
     rows = []
     for event_id, (gid, swapped) in matches.items():
@@ -179,7 +184,7 @@ def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
             L = m["spreads"]["line"]
             ph, pp, pa = spread_probs(g.pred_margin, g.margin_sd, L)
             fh = m["spreads"]["fair_home"]
-            ph_b = _blend(ph / (ph + pa), fh, w) * (1 - pp)
+            ph_b = _blend(ph / (ph + pa), fh, mw["spread"]) * (1 - pp)
             cands += [("spread", "home", g.home, L, *m["spreads"]["home"], ph_b, pp, fh),
                       ("spread", "away", g.away, -L, *m["spreads"]["away"], 1 - pp - ph_b, pp,
                        None if fh is None else 1 - fh)]
@@ -187,7 +192,7 @@ def build_board(pred: pd.DataFrame, flat: pd.DataFrame, args) -> pd.DataFrame:
             L = m["totals"]["line"]
             po, pp, pu = total_probs(g.pred_total, g.total_sd, L)
             fo = m["totals"]["fair_over"]
-            po_b = _blend(po / (po + pu), fo, w) * (1 - pp)
+            po_b = _blend(po / (po + pu), fo, mw["total"]) * (1 - pp)
             cands += [("total", "over", "over", L, *m["totals"]["over"], po_b, pp, fo),
                       ("total", "under", "under", L, *m["totals"]["under"], 1 - pp - po_b, pp,
                        None if fo is None else 1 - fo)]
@@ -255,6 +260,9 @@ def cmd_picks(args):
     print(f"\n{len(picks)} picks, total stake {picks['stake'].sum():.2f} "
           f"of bankroll {args.bankroll:.0f}; saved reports/picks_{stamp}.csv")
     if not args.no_log:
+        tips = sorted(pd.to_datetime(picks["commence"]).dt.floor("min").unique())
+        print("closing prices: run `elbet closing --window 45` at "
+              + ", ".join(f"{(t - pd.Timedelta(minutes=30)):%a %H:%M} UTC" for t in tips))
         n = tracking.log_picks(picks)
         print(f"logged {n} new picks to {tracking.LOG_PATH} "
               f"(run `elbet closing` shortly before tip-off, `elbet track` after)")
@@ -553,8 +561,10 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("picks", help="compare model to live bookmaker odds (needs ODDS_API_KEY)")
     sp.add_argument("--days", type=float, default=3)
     sp.add_argument("--min-edge", type=float, default=None, help="minimum EV, e.g. 0.03")
-    sp.add_argument("--market-weight", type=float, default=0.0,
-                    help="blend model with no-vig market probability (0 = pure model)")
+    sp.add_argument("--market-weight", type=float, default=None,
+                    help="market weight for moneyline/spread (default 0.5)")
+    sp.add_argument("--total-market-weight", type=float, default=None,
+                    help="market weight for totals (default 0.8: the totals model is weak)")
     sp.add_argument("--bookmakers",
                     help="only take prices from these Odds API bookmaker keys, e.g. "
                          "pinnacle,williamhill,betsson (default: all but offshore books)")

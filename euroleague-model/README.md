@@ -204,6 +204,15 @@ selected on 2015-22 and reported on 2023-26 (walk-forward, see `elbet/experiment
 | Stronger early-season regression to the mean | helps 2015-22, hurts 2023-26 | rejected |
 | Multiplicative pace | differs from ours by <0.1 possession | not needed |
 
+## Review after the first live round (28-29 Oct 2026)
+
+| Finding | Evidence | Fix |
+|---|---|---|
+| Spread/total probabilities are calibrated | standardised errors have SD 0.95-1.06 every season; shrinking margins toward 0 only hurts (log loss best at factor 1.0) | none needed |
+| Totals model has little information beyond the league average | explains ~9% of total variance (margins ~13%); this season MAE 14.6 vs 14.8 for the league average; every pick so far was a total; BES-OLY model 179.5, actual 154 | blend weight per market: totals lean 80% on the market (`--total-market-weight`), sides stay 50/50 |
+| A bet had no closing price | `closing` was never run before Virtus-Zalgiris | `picks` now prints when to run `elbet closing` for each tip-off |
+| Blowouts and coach's minutes decisions | Hapoel by 30; Evans/Reeves/Franks/Plotas minutes | normal noise, not fixable pre-game |
+
 ## Limitations and honest caveats
 
 * The model knows only EuroLeague games: no domestic-league fatigue or travel.
