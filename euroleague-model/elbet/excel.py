@@ -345,7 +345,7 @@ def _all_props(pred: pd.DataFrame, inj: pd.DataFrame, props_model) -> pd.DataFra
         absences = pipeline.game_absences(g, inj)
         proj = pipeline.game_props(g, players, props_model, absences,
                                    {"home": g["pred_home_pts"], "away": g["pred_away_pts"]},
-                                   learned)
+                                   learned, pipeline.game_cleared(g, inj))
         if not proj.empty:
             proj["game"] = f"{g['home']}-{g['away']}"
             proj["team_pts"] = np.where(proj["side"] == "home", g["pred_home_pts"],

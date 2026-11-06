@@ -424,7 +424,7 @@ def _project_game_props(game_row: pd.DataFrame, inj, extra_out, players, props):
             g1, players, pipeline.absences_by_pid(g1, players, inj, extra_out))
     proj = pipeline.game_props(game, players, props, absences,
                                {"home": game["pred_home_pts"], "away": game["pred_away_pts"]},
-                               learned)
+                               learned, pipeline.game_cleared(game, inj))
     return proj, game
 
 

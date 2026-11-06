@@ -125,6 +125,16 @@ def load_injuries(fetch: bool = True) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def cleared_for_team(injuries: pd.DataFrame, team_names: str) -> list[str]:
+    """Players the feed lists as cleared/available for one club (returning from injury)."""
+    from .odds import name_similarity
+
+    if injuries is None or injuries.empty:
+        return []
+    return [r.player for r in injuries.itertuples(index=False)
+            if r.weight <= 0 and (not r.team or name_similarity(str(r.team), team_names) >= 0.6)]
+
+
 def absences_for_team(injuries: pd.DataFrame, team_names: str) -> dict[str, float]:
     """{player name: probability of missing} for one club ('|'-joined official names).
     Entries without a team are kept; the roster match decides where they belong."""

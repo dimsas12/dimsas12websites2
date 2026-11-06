@@ -273,8 +273,13 @@ def power_ratings(feats: pd.DataFrame, settings: Settings = SETTINGS) -> pd.Data
 def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
                absences: dict[str, dict[str, float]] | None = None,
                team_pts: dict[str, float] | None = None,
-               learned_minutes: pd.DataFrame | None = None) -> pd.DataFrame:
+               learned_minutes: pd.DataFrame | None = None,
+               cleared: dict[str, list[str]] | None = None) -> pd.DataFrame:
     """Prop projections for both teams of one game (game = a features row).
+
+    cleared: {"home": [names], "away": [...]} listed as cleared by the injury feed.
+    Those who played this season but not recently are added back with
+    props.RETURN_P_PLAY and their usual minutes x props.return_ratio(games missed).
 
     absences: {"home": {name: P(out)}, "away": {...}} from the injury feed / --out.
     team_pts: {"home": points, "away": points} from the game model (reported only).
@@ -288,7 +293,7 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
     per-minute-rate uncertainty (PropDistribution).
     """
     from . import props_backtest as pb
-    from .props import appearance_rates
+    from .props import RETURN_P_PLAY, appearance_rates, return_ratio, returning_players
 
     absences = absences or {}
     season = int(game["season"])
@@ -298,10 +303,13 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
     for side, opp_def in (("home", game["def_away"]), ("away", game["def_home"])):
         team = game[side]
         roster = recent_roster(players, team, season, props.cfg.recent_team_games)
-        proj = props.project(team, opp_def, game["mu_eff"], pace_f, season, roster)
+        back = returning_players(players, team, season, roster,
+                                 (cleared or {}).get(side) or [], match_player)
+        proj = props.project(team, opp_def, game["mu_eff"], pace_f, season, roster + list(back))
         if proj.empty:
             continue
         appear = appearance_rates(players, team, season)
+        appear.update({pid: RETURN_P_PLAY for pid in back})
         p_out = pd.Series(0.0, index=proj.index)
         for name, w in (absences.get(side) or {}).items():
             hit = match_player(name, proj["player"])
@@ -331,8 +339,11 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
             # Learned model (MAE 4.41 vs 4.50 for the rule on 2023-26 player-games).
             pm = dict(zip(lm["player_id"], lm["pred_min"]))
             minutes = np.array([pm.get(pid, b) for pid, b in zip(proj["player_id"], base)])
+            minutes = np.array([b * return_ratio(back[pid]) if pid in back else m
+                                for pid, b, m in zip(proj["player_id"], base, minutes)])
             # Learned chance of playing (log loss 0.174 vs 0.294 for the appearance rate).
             pa = dict(zip(lm["player_id"], lm["p_appear"]))
+            pa.update({pid: RETURN_P_PLAY for pid in back})
             proj["p_play"] = [pa.get(pid, a) * (1 - po) for pid, a, po in
                               zip(proj["player_id"], proj["p_play"] / (1 - proj["p_out"]).clip(
                                   lower=1e-9), proj["p_out"])]
@@ -340,6 +351,14 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
         else:
             minutes = pb.allocate(base, proj["p_play"].to_numpy(), pb.ALLOC_MODE,
                                   pb.ALLOC_STRENGTH, target)
+        if back:
+            # Returning players' minutes come out of everyone else's, in proportion.
+            ret = proj["player_id"].isin(list(back)).to_numpy()
+            pp = proj["p_play"].to_numpy()
+            others = float((pp * minutes)[~ret].sum())
+            take = float((pp * minutes)[ret].sum())
+            if others > take > 0:
+                minutes = np.where(ret, minutes, minutes * (others - take) / others)
         # Ruled-out players: show their usual role, not a reallocated one.
         minutes = np.where(proj["p_play"].to_numpy() > 0, minutes, base)
         scale = np.divide(minutes, base, out=np.ones_like(base), where=base > 0)
@@ -365,6 +384,7 @@ def game_props(game: pd.Series, players: pd.DataFrame, props: PropsModel,
                 fl = [fair_line(m, props.alpha[st]) for m in proj[st]]
             proj[f"{st}_line"] = [x[0] for x in fl]
             proj[f"{st}_p_over"] = [x[1] for x in fl]
+        proj["returning"] = proj["player_id"].isin(list(back))
         proj["side"] = side
         out.append(proj)
     if not out:
@@ -395,6 +415,13 @@ def game_absences(game: pd.Series, injuries: pd.DataFrame | None,
         d.update({n: 1.0 for n in (extra_out or [])})
         res[side] = d
     return res
+
+
+def game_cleared(game: pd.Series, injuries: pd.DataFrame | None) -> dict[str, list[str]]:
+    """{"home": [names], "away": [...]} the injury feed lists as cleared to return."""
+    from .injuries import cleared_for_team
+
+    return {side: cleared_for_team(injuries, game[f"{side}_names"]) for side in ("home", "away")}
 
 
 def absences_by_pid(games: pd.DataFrame, players: pd.DataFrame, injuries: pd.DataFrame | None,

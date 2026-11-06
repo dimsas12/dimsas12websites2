@@ -229,3 +229,25 @@ def test_headroom_allocation_favours_bench():
     m = allocate(base, p_play, "headroom", 1.0, 197.0)
     gain = m - base
     assert gain[5] > gain[0]  # a bench player gains more than the 32-minute starter
+
+
+def test_returning_players_found_and_minutes_ratio():
+    import pandas as pd
+    from elbet.pipeline import match_player
+    from elbet.props import recent_roster, return_ratio, returning_players
+
+    rows = []
+    for k in range(8):
+        gid = f"G{k}"
+        for pid, name in [("A", "ONE, AL"), ("B", "TWO, BO"), ("C", "STAR, CY")]:
+            if pid == "C" and k >= 3:  # injured after the third game
+                continue
+            rows.append({"game_id": gid, "team": "T", "season": 2026, "player_id": pid,
+                         "player": name, "min": 20.0})
+    p = pd.DataFrame(rows)
+    roster = recent_roster(p, "T", 2026, 3)
+    assert "C" not in roster
+    back = returning_players(p, "T", 2026, roster, ["Cy Star"], match_player)
+    assert back == {"C": 5}
+    assert returning_players(p, "T", 2026, roster, ["Al One"], match_player) == {}
+    assert return_ratio(3) > return_ratio(6) > return_ratio(12)
