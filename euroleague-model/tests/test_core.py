@@ -251,3 +251,17 @@ def test_returning_players_found_and_minutes_ratio():
     assert back == {"C": 5}
     assert returning_players(p, "T", 2026, roster, ["Al One"], match_player) == {}
     assert return_ratio(3) > return_ratio(6) > return_ratio(12)
+
+
+def test_returning_player_from_last_season():
+    import pandas as pd
+    from elbet.pipeline import match_player
+    from elbet.props import return_ratio, returning_players
+
+    rows = [{"game_id": f"O{k}", "team": "T", "season": 2025, "player_id": "V",
+             "player": "MARINKOVIC, VANJA", "min": 20.0} for k in range(3)]
+    rows += [{"game_id": f"G{k}", "team": "T", "season": 2026, "player_id": "A",
+              "player": "ONE, AL", "min": 25.0} for k in range(5)]
+    p = pd.DataFrame(rows)
+    back = returning_players(p, "T", 2026, ["A"], ["Vanja Marinkovic"], match_player)
+    assert list(back) == ["V"] and return_ratio(back["V"]) == 0.64

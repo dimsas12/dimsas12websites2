@@ -218,20 +218,26 @@ def return_ratio(missed: int) -> float:
 def returning_players(players: pd.DataFrame, team: str, season: int, roster: list[str],
                       cleared: list[str], match) -> dict[str, int]:
     """{player_id: team games missed} for players the injury feed lists as cleared who
-    played for `team` this season but are not on the recent roster."""
-    p = players[(players["team"] == team) & (players["season"] == season) & (players["min"] > 0)]
-    if p.empty or not cleared:
+    played for `team` this season (or, if not yet this season, last season) but are
+    not on the recent roster. A player back from a long injury since last season
+    counts as having missed every game so far (e.g. Marinkovic, 6 Nov: 12.6 minutes
+    vs 20.5 last season)."""
+    t = players[(players["team"] == team) & (players["min"] > 0)
+                & players["season"].isin([season, season - 1])]
+    p = t[t["season"] == season]
+    if t.empty or not cleared:
         return {}
     games = p["game_id"].drop_duplicates().tolist()
-    names = p[~p["player_id"].isin(roster)].drop_duplicates("player_id")
+    names = t[~t["player_id"].isin(roster)].drop_duplicates("player_id", keep="last")
     out = {}
     for name in cleared:
         hit = match(name, names["player"].tolist())
         if hit is None:
             continue
         pid = names.loc[names["player"] == hit, "player_id"].iloc[0]
-        last = p.loc[p["player_id"] == pid, "game_id"].iloc[-1]
-        out[pid] = len(games) - 1 - games.index(last)
+        mine = p.loc[p["player_id"] == pid, "game_id"]
+        out[pid] = (len(games) - 1 - games.index(mine.iloc[-1])) if len(mine) \
+            else max(len(games), 10**3)
     return out
 
 
