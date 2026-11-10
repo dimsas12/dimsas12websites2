@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "msbet"
+version = "0.1.0"
+description = "Multi-sport betting models: football, tennis, NBA, NFL, NCAA"
+requires-python = ">=3.10"
+dependencies = ["numpy", "pandas", "scipy", "requests", "openpyxl", "scikit-learn"]
+
+[project.scripts]
+msbet = "msbet.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["msbet*"]
