@@ -32,6 +32,28 @@ def _soccer(args) -> None:
         print(f"wrote {out}")
 
 
+def _tennis(args) -> None:
+    from .tennis import data, pipeline, report
+
+    if args.command in ("update", "build"):
+        if args.command == "update":
+            df = data.download()
+            data.download_tml()
+            print(f"matches: {len(df)}")
+        print(pipeline.build())
+    elif args.command == "predict":
+        import pandas as pd
+        st = pipeline.load_state()
+        up = pipeline.upcoming(args.days)
+        rows = [report.match_row(st, m) for m in up[~up["qualifying"]].itertuples(index=False)]
+        cols = ["date", "tour", "tournament", "player 1", "player 2", "P(1 wins)", "fair 1",
+                "fair 2", "exp games", "P(tie-break)"]
+        print(pd.DataFrame(rows)[cols].round(2).to_string(index=False) if rows
+              else "no scheduled matches in the window")
+    elif args.command == "excel":
+        print(f"wrote {report.export(args.days, args.odds, args.min_edge)}")
+
+
 def main(argv=None) -> None:
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     ap = argparse.ArgumentParser(prog="msbet", description=__doc__)
@@ -45,6 +67,13 @@ def main(argv=None) -> None:
     s.add_argument("--no-props", action="store_true")
     s.add_argument("--min-edge", type=float, default=0.02)
     s.set_defaults(func=_soccer)
+
+    t = sports.add_parser("tennis", help="ATP and WTA tour")
+    t.add_argument("command", choices=["update", "build", "predict", "excel"])
+    t.add_argument("--days", type=float, default=2.0)
+    t.add_argument("--odds", action="store_true")
+    t.add_argument("--min-edge", type=float, default=0.02)
+    t.set_defaults(func=_tennis)
 
     args = ap.parse_args(argv)
     args.func(args)

@@ -65,6 +65,14 @@ def fetch(sport_key: str, markets: str = "h2h,totals,spreads", regions: str = "e
                     "used": r.headers.get("x-requests-used")}
 
 
+def active_sports(prefix: str) -> list[str]:
+    """Keys of in-season sports starting with `prefix` (free call, no credits);
+    tennis has one key per tournament, e.g. tennis_atp_paris_masters."""
+    r = requests.get(API + "/sports", params={"apiKey": api_key()}, timeout=40)
+    r.raise_for_status()
+    return [s["key"] for s in r.json() if s["key"].startswith(prefix) and s.get("active")]
+
+
 def flatten(events: list) -> pd.DataFrame:
     rows = []
     for e in events:
