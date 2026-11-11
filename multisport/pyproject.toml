@@ -7,7 +7,7 @@ name = "msbet"
 version = "0.1.0"
 description = "Multi-sport betting models: football, tennis, NBA, NFL, NCAA"
 requires-python = ">=3.10"
-dependencies = ["numpy", "pandas", "scipy", "requests", "openpyxl", "scikit-learn"]
+dependencies = ["numpy", "pandas", "scipy", "requests", "openpyxl", "scikit-learn", "tabulate"]
 
 [project.scripts]
 msbet = "msbet.cli:main"

@@ -21,19 +21,22 @@ from scipy.optimize import minimize
 from scipy.stats import poisson
 
 MAX_GOALS = 10
-SECOND_TIER = {"E1": "E0"}  # lower division -> its top division
+SECOND_TIER = {"E1": "E0", "eng.2": "eng.1"}  # lower division -> its top division
 
 
 @dataclass
 class RatingConfig:
-    k: float = 0.045          # learning rate of attack/defence
+    k: float = 0.03           # learning rate of attack/defence (tuned on 2015-19)
     goal_weight: float = 0.35  # weight of actual goals vs shot-based xG in performance
     sot_value: float = 0.30   # goals per shot on target (fitted on 2012-18)
-    off_value: float = 0.035  # goals per shot off target
+    off_value: float = 0.0    # goals per shot off target (regression: ~0)
     season_regress: float = 0.80  # share of a rating kept across the summer
     new_team: float = -0.18   # starting attack/defence of promoted / unseen teams
     tier_gap: float = 0.33    # attack/defence shift when moving between E1 and E0
     k_league: float = 0.004   # learning rate of league goal level and home edge
+    k_strength: float = 0.012  # learning rate of league strength (from cross-league games)
+    mu0: float = 1.30         # starting goals per team per match
+    hfa0: float = 0.25        # starting home edge (log scale)
 
 
 @dataclass
@@ -47,12 +50,26 @@ class Ratings:
     last_season: dict = field(default_factory=dict)
     last_date: dict = field(default_factory=dict)
     n: dict = field(default_factory=dict)
+    dom: dict = field(default_factory=dict)       # team -> its domestic league / pool
+    strength: dict = field(default_factory=dict)  # league -> strength (cross-league games)
 
-    def _enter(self, team: str, div: str, season: int) -> None:
+    def _enter(self, team: str, div: str, season: int, domestic: bool = True) -> None:
         c = self.cfg
         if team not in self.att:
             self.att[team] = self.dfn[team] = c.new_team
             self.n[team] = 0
+            self.dom[team] = div if domestic else "minor"
+            if not domestic:  # cup-only club from an unlisted league
+                self.last_div[team], self.last_season[team] = div, season
+            self.strength.setdefault(self.dom[team], 0.0)
+        if not domestic:
+            if self.last_season[team] != season and self.dom[team] == "minor":
+                self.att[team] *= c.season_regress
+                self.dfn[team] *= c.season_regress
+                self.last_season[team] = season
+            return
+        if self.n[team] == 0 and team not in self.last_div:
+            pass
         else:
             if self.last_season[team] != season:
                 self.att[team] *= c.season_regress
@@ -66,25 +83,34 @@ class Ratings:
                     self.att[team] += c.tier_gap
                     self.dfn[team] += c.tier_gap
         self.last_div[team], self.last_season[team] = div, season
+        self.dom[team] = div
+        self.strength.setdefault(div, 0.0)
 
-    def rates(self, home: str, away: str, div: str, season: int) -> tuple[float, float]:
-        self._enter(home, div, season)
-        self._enter(away, div, season)
-        mu = self.mu.setdefault(div, np.log(1.30))
-        hfa = self.hfa.setdefault(div, 0.25)
-        lh = np.exp(mu + hfa + self.att[home] - self.dfn[away])
-        la = np.exp(mu + self.att[away] - self.dfn[home])
+    def rates(self, home: str, away: str, div: str, season: int, neutral: bool = False,
+              domestic: bool = True) -> tuple[float, float]:
+        self._enter(home, div, season, domestic)
+        self._enter(away, div, season, domestic)
+        mu = self.mu.setdefault(div, np.log(self.cfg.mu0))
+        hfa = 0.0 if neutral else self.hfa.setdefault(div, self.cfg.hfa0)
+        gap = self.strength[self.dom[home]] - self.strength[self.dom[away]]
+        lh = np.exp(mu + hfa + self.att[home] - self.dfn[away] + gap)
+        la = np.exp(mu + self.att[away] - self.dfn[home] - gap)
         return float(lh), float(la)
 
-    def update(self, home, away, div, lh, la, perf_h, perf_a, date) -> None:
+    def update(self, home, away, div, lh, la, perf_h, perf_a, date, neutral=False) -> None:
         c = self.cfg
         eh, ea = perf_h - lh, perf_a - la
+        dh, da = self.dom[home], self.dom[away]
+        if dh != da:
+            self.strength[dh] += c.k_strength * (eh - ea)
+            self.strength[da] -= c.k_strength * (eh - ea)
         self.att[home] += c.k * eh
         self.dfn[away] -= c.k * eh
         self.att[away] += c.k * ea
         self.dfn[home] -= c.k * ea
         self.mu[div] += c.k_league * (eh + ea) / 2
-        self.hfa[div] += c.k_league * (eh - ea) / 2
+        if not neutral:
+            self.hfa[div] += c.k_league * (eh - ea) / 2
         for t in (home, away):
             self.n[t] += 1
             self.last_date[t] = date
@@ -103,21 +129,30 @@ def performance(m, cfg: RatingConfig) -> tuple[float, float]:
     return w * m.hg + (1 - w) * xh, w * m.ag + (1 - w) * xa
 
 
-def run_ratings(matches: pd.DataFrame, cfg: RatingConfig | None = None
+def run_ratings(matches: pd.DataFrame, cfg: RatingConfig | None = None, perf=None
                 ) -> tuple[pd.DataFrame, Ratings]:
-    """Pre-match stage-1 rates for every row (date order); unplayed rows get rates too."""
+    """Pre-match stage-1 rates for every row (date order); unplayed rows get rates too.
+
+    Optional columns: `neutral` (no home edge) and `domestic` (False for cup /
+    international games, which do not change a club's home league). `perf(m, cfg)`
+    returns the (home, away) performance to learn from; default goals + shot xG."""
     r = Ratings(cfg or RatingConfig())
+    perf = perf or performance
+    has_n, has_d = "neutral" in matches, "domestic" in matches
     lh_, la_, rh_, ra_, nh_, na_ = [], [], [], [], [], []
     for m in matches.itertuples(index=False):
         dh, da = r.last_date.get(m.home), r.last_date.get(m.away)
-        lh, la = r.rates(m.home, m.away, m.div, m.season)
+        neutral = bool(m.neutral) if has_n else False
+        lh, la = r.rates(m.home, m.away, m.div, m.season, neutral,
+                         bool(m.domestic) if has_d else True)
         lh_.append(lh); la_.append(la)
         rh_.append(min((m.date - dh).days, 14) if dh is not None else 7)
         ra_.append(min((m.date - da).days, 14) if da is not None else 7)
         nh_.append(r.n[m.home]); na_.append(r.n[m.away])
         if m.played:
-            ph, pa = performance(m, r.cfg)
-            r.update(m.home, m.away, m.div, lh, la, ph, pa, m.date)
+            ph, pa = perf(m, r.cfg)
+            if ph == ph and pa == pa:
+                r.update(m.home, m.away, m.div, lh, la, ph, pa, m.date, neutral)
     out = matches.copy()
     out["lh0"], out["la0"], out["rest_h"], out["rest_a"] = lh_, la_, rh_, ra_
     out["n_h"], out["n_a"] = nh_, na_
