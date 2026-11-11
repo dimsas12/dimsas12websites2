@@ -115,3 +115,65 @@ def test_lay_markets_ignored_and_single_exchange_not_sharp():
     t = odds.value_table(flat, min_books=2)
     assert (t["fair_source"].str.startswith("consensus")).all()
     assert odds.picks(t, 0.02).empty  # consensus-only prices are not flagged by default
+
+
+def _toy_box(missing_game=None, n=14):
+    rows = []
+    for k in range(n):
+        for pid, mins, prod in (("star", 34.0, 40.0), ("mid", 25.0, 20.0), ("bench", 12.0, 4.0),
+                                ("x1", 20.0, 10.0), ("x2", 18.0, 8.0)):
+            if pid == "star" and k == missing_game:
+                continue
+            rows.append({"event_id": f"g{k}", "date": pd.Timestamp("2026-01-01") + pd.Timedelta(
+                days=k), "team_id": "T", "player_id": pid, "player": pid, "min": mins,
+                "prod": prod, "pts": prod * 0.5})
+    return pd.DataFrame(rows)
+
+
+def test_missing_value_flags_absent_regular():
+    from msbet import avail
+    m = avail.build_missing(_toy_box(missing_game=8)).set_index("event_id")
+    assert m.at["g8", "miss_val"] > 10 and m.at["g8", "n_missing"] == 1
+    assert m.at["g7", "miss_val"] == 0 and m.at["g12", "miss_val"] == 0
+    # incremental mode only recomputes recent games and gives identical values
+    inc = avail.build_missing(_toy_box(missing_game=8), since=pd.Timestamp("2026-01-09"))
+    assert set(inc["event_id"]) <= {f"g{k}" for k in range(8, 14)}
+    assert abs(inc.set_index("event_id").at["g8", "miss_val"] - m.at["g8", "miss_val"]) < 1e-9
+
+
+def test_soccer_streak_probabilities_and_red_card():
+    from msbet.soccer import avail_soccer as A
+    b = _toy_box(missing_game=None, n=30)
+    b["red"] = 0
+    # the star misses games 20-22 only
+    b = b[~((b["player_id"] == "star") & b["event_id"].isin({"g20", "g21", "g22"}))]
+    probs = A.learn_streak_probs(b, regular=4, span=8)
+    assert probs[0] < 0.2 and all(0 < p < 1 for p in probs.values())
+    pv = A.regulars(b, "T", pd.Timestamp("2026-01-24"))
+    assert pv.at["star", "streak"] == 3 and pv.at["mid", "streak"] == 0
+    out = A.inferred_p_out(pv, probs)
+    assert "star" in out and "mid" not in out
+
+
+def test_fpl_team_and_name_matching():
+    from msbet.soccer import avail_soccer as A
+    names = {"1": "Manchester City", "2": "Tottenham Hotspur", "3": "Nottingham Forest"}
+    assert A.match_team("Man City", names) == "1"
+    assert A.match_team("Spurs", names) == "2"
+    assert A.match_team("Nott'm Forest", names) == "3"
+
+
+def test_goal_model_uses_availability_features():
+    from msbet.soccer.model import GoalModel, _design, _swap
+    rng = np.random.default_rng(1)
+    n = 6000
+    df = pd.DataFrame({"played": True, "n_h": 20, "n_a": 20, "lh0": 1.4, "la0": 1.2,
+                       "rest_h": 5, "rest_a": 5, "mp_h": rng.uniform(0, 3, n),
+                       "mp_a": rng.uniform(0, 3, n), "mm_h": rng.uniform(0, 100, n),
+                       "mm_a": rng.uniform(0, 100, n)})
+    df["hg"] = rng.poisson(1.4 * np.exp(-0.15 * df["mp_h"] / 3 + 0.1 * df["mp_a"] / 3))
+    df["ag"] = rng.poisson(1.2 * np.exp(-0.15 * df["mp_a"] / 3 + 0.1 * df["mp_h"] / 3))
+    gm = GoalModel().fit(df)
+    assert gm.avail and gm.bh[5] < 0 < gm.bh[6]  # own missing attack lowers, opponent's raises
+    X = _design(df, True)
+    assert _swap(X).shape == X.shape and np.allclose(_swap(_swap(X)), X)

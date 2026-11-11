@@ -40,7 +40,7 @@ def _run(cmd: list[str], cwd: Path, env: dict) -> subprocess.CompletedProcess:
 def run(date: str | None = None, tz: str = "Europe/Athens", odds: bool = True,
         only: list[str] | None = None) -> Path:
     from .soccer import data as sdata
-    from .soccer import espn_data, pipeline as spipe, report as sreport
+    from .soccer import espn_data, pipeline as spipe, props as sprops, report as sreport
     from .tennis import data as tdata, pipeline as tpipe, report as treport
     from .us import data as udata, pipeline as upipe, props as uprops, report as ureport
 
@@ -83,7 +83,8 @@ def run(date: str | None = None, tz: str = "Europe/Athens", odds: bool = True,
     # ---- football
     def soccer():
         sdata.download()
-        espn_data.download()
+        matches = espn_data.download()
+        sprops.download_lineups(matches, "2022-08-01", sprops.LINEUP_LEAGUES)
         spipe.build()
         leagues = list(espn_data.ALL)
         out = out_dir / f"soccer_{local:%Y-%m-%d}.xlsx"

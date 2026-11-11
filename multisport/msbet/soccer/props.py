@@ -173,3 +173,36 @@ def prop_table(proj: pd.DataFrame) -> pd.DataFrame:
             base["saves"] = round(r.saves, 2)
         rows.append(base)
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------- bulk line-up table
+
+LINEUP_LEAGUES = ["eng.1", "esp.1", "ger.1", "ita.1", "fra.1", "gre.1", "ned.1", "por.1", "tur.1",
+                  "bel.1", "sco.1", "uefa.champions", "uefa.europa", "uefa.europa.conf"]
+
+
+def download_lineups(matches: pd.DataFrame, first: str = "2021-08-01", leagues=None,
+                     workers: int = 12) -> pd.DataFrame:
+    """Player rows (starter / minutes estimate / shots...) of every played match."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    m = matches[matches["played"] & (matches["date"] >= first)]
+    if leagues:
+        m = m[m["league"].isin(leagues)]
+    meta = m[["event_id", "date", "league"]]
+
+    def one(r):
+        return match_players(r.league, r.event_id)
+    with ThreadPoolExecutor(workers) as ex:
+        parts = list(ex.map(one, meta.itertuples(index=False)))
+    df = pd.concat([p for p in parts if len(p)], ignore_index=True)
+    df = df.merge(meta[["event_id", "date", "league"]], on="event_id")
+    path = espn.ROOT / "data" / "soccer" / "lineups.csv"
+    df.to_csv(path, index=False)
+    return df
+
+
+def load_lineups() -> pd.DataFrame:
+    path = espn.ROOT / "data" / "soccer" / "lineups.csv"
+    return pd.read_csv(path, parse_dates=["date"],
+                       dtype={"event_id": str, "team_id": str, "player_id": str})

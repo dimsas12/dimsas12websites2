@@ -28,7 +28,9 @@ def games_table(up: pd.DataFrame) -> pd.DataFrame:
         "fair away ML": 1 / (1 - up["p_home"]), "model total": up["pred_total"],
         "home pts": up["home_pts"], "away pts": up["away_pts"],
         "book spread (home)": None, "book total": None,
-        "games home": up["n_h"], "games away": up["n_a"]}).reset_index(drop=True)
+        "games home": up["n_h"], "games away": up["n_a"],
+        **({"missing value home": up["miss_h"], "missing value away": up["miss_a"]}
+           if "miss_h" in up else {})}).reset_index(drop=True)
 
 
 def nba_props_table(pr: pd.DataFrame) -> pd.DataFrame:
@@ -152,12 +154,16 @@ def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bo
         table = props.nba_table() if code == "nba" else pd.read_csv(
             data.DIR / "nfl_players.csv", parse_dates=["date"])
         r = 1
+        nfl_cache: dict = {}
         for g in up.itertuples(index=False):
             if code == "nba":
                 pr = pipeline.nba_game_props(g, table, pipeline.nba_injuries(g.event_id))
                 tb = nba_props_table(pr) if len(pr) else pr
             else:
-                pr = pipeline.nfl_game_props(g, table)
+                from .avail_us import nfl_report
+                rep = nfl_cache.setdefault((int(g.season), int(g.week)),
+                                           nfl_report(int(g.season), int(g.week)))
+                pr = pipeline.nfl_game_props(g, table, rep)
                 tb = nfl_props_table(pr) if len(pr) else pr
             if tb.empty:
                 continue

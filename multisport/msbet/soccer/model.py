@@ -161,12 +161,26 @@ def run_ratings(matches: pd.DataFrame, cfg: RatingConfig | None = None, perf=Non
 
 # ---------------------------------------------------------------- stage 2
 
-def _design(df: pd.DataFrame) -> np.ndarray:
+AVAIL_COLS = ("mp_h", "mp_a", "mm_h", "mm_a")  # missing attacking value / minutes, home & away
+
+
+def _design(df: pd.DataFrame, avail: bool = False) -> np.ndarray:
     lh, la = np.log(df["lh0"].to_numpy()), np.log(df["la0"].to_numpy())
     short_h = (df["rest_h"].to_numpy() <= 3).astype(float)
     short_a = (df["rest_a"].to_numpy() <= 3).astype(float)
     one = np.ones(len(df))
-    return np.column_stack([one, lh, la, short_h, short_a])
+    cols = [one, lh, la, short_h, short_a]
+    if avail:  # value of regulars missing, scaled to about one per missing key player
+        v = {c: (df[c].fillna(0.0).to_numpy(float) if c in df else np.zeros(len(df)))
+             for c in AVAIL_COLS}
+        cols += [v["mp_h"] / 3.0, v["mp_a"] / 3.0, v["mm_h"] / 60.0, v["mm_a"] / 60.0]
+    return np.column_stack(cols)
+
+
+def _swap(X: np.ndarray) -> np.ndarray:
+    """The same design seen from the away side (home/away columns exchanged)."""
+    idx = [0, 2, 1, 4, 3] + ([6, 5, 8, 7] if X.shape[1] > 5 else [])
+    return X[:, idx]
 
 
 def _fit_poisson(X: np.ndarray, y: np.ndarray, l2: float = 1.0) -> np.ndarray:
@@ -199,12 +213,16 @@ class GoalModel:
     bh: np.ndarray | None = None
     ba: np.ndarray | None = None
     rho: float = -0.05
+    avail: bool = False
 
-    def fit(self, df: pd.DataFrame) -> "GoalModel":
+    def fit(self, df: pd.DataFrame, use_avail: bool = True) -> "GoalModel":
         df = df[df["played"] & (df["n_h"] >= 6) & (df["n_a"] >= 6)]
-        X = _design(df)
+        self.avail = bool(use_avail and "mp_h" in df and df["mp_h"].notna().sum() > 3000)
+        if self.avail:  # only matches with line-up data carry the availability features
+            df = df[df["mp_h"].notna() & df["mp_a"].notna()]
+        X = _design(df, self.avail)
         self.bh = _fit_poisson(X, df["hg"].to_numpy(float))
-        self.ba = _fit_poisson(X[:, [0, 2, 1, 4, 3]], df["ag"].to_numpy(float))
+        self.ba = _fit_poisson(_swap(X), df["ag"].to_numpy(float))
         lh, la = self.rates(df)
         hg, ag = df["hg"].to_numpy(int), df["ag"].to_numpy(int)
 
@@ -219,8 +237,8 @@ class GoalModel:
         return self
 
     def rates(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-        X = _design(df)
-        return np.exp(X @ self.bh), np.exp(X[:, [0, 2, 1, 4, 3]] @ self.ba)
+        X = _design(df, self.avail)
+        return np.exp(X @ self.bh), np.exp(_swap(X) @ self.ba)
 
 
 def market_probs(lh: float, la: float, rho: float = 0.0, ah_line: float | None = None,

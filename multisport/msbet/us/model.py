@@ -115,9 +115,12 @@ def run(games: pd.DataFrame, cfg: PtsConfig) -> tuple[pd.DataFrame, PtsRatings]:
 def _X(df: pd.DataFrame, cfg: PtsConfig) -> np.ndarray:
     short_h = (df["rest_h"] <= cfg.b2b_days).astype(float)
     short_a = (df["rest_a"] <= cfg.b2b_days).astype(float)
-    return np.column_stack([np.ones(len(df)), df["eh0"] - df["ea0"], df["eh0"] + df["ea0"],
-                            short_h - short_a, short_h + short_a,
-                            df["neutral"].astype(float)])
+    cols = [np.ones(len(df)), df["eh0"] - df["ea0"], df["eh0"] + df["ea0"],
+            short_h - short_a, short_h + short_a, df["neutral"].astype(float)]
+    if "miss_h" in df:  # availability: value of regulars missing (see msbet/avail.py)
+        mh, ma = df["miss_h"].fillna(0).to_numpy(float), df["miss_a"].fillna(0).to_numpy(float)
+        cols += [mh - ma, mh + ma]
+    return np.column_stack(cols)
 
 
 @dataclass
@@ -131,6 +134,8 @@ class GameModel:
     def fit(self, rated: pd.DataFrame, min_games: int = 5) -> "GameModel":
         d = rated[rated["completed"] & rated["h_pts"].notna() & (rated["n_h"] >= min_games)
                   & (rated["n_a"] >= min_games)]
+        if "miss_h" in d and d["miss_h"].notna().sum() > 1500:
+            d = d[d["miss_h"].notna() & d["miss_a"].notna()]  # seasons with availability data
         X = _X(d, self.cfg)
         m = (d["h_pts"] - d["a_pts"]).to_numpy(float)
         t = (d["h_pts"] + d["a_pts"]).to_numpy(float)

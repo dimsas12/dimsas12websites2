@@ -21,6 +21,9 @@ def _state(code: str):
 
 def build(code: str) -> dict:
     g = data.games_with_lines(code)
+    from .avail_us import available, with_missing
+    if available(code):
+        g = with_missing(g, code)
     rated, ratings = run(g, CONFIGS[code])
     gm = GameModel(CONFIGS[code]).fit(rated)
     _state(code).write_bytes(pickle.dumps({"rated": rated, "model": gm, "ratings": ratings}))
@@ -40,6 +43,9 @@ def upcoming(code: str, days: float = 2.0) -> pd.DataFrame:
            & (r["date"] <= now + pd.Timedelta(days=days))]
     if up.empty:
         return up
+    from .avail_us import available, upcoming_missing
+    if available(code) and "miss_h" in st["rated"]:
+        up = upcoming_missing(code, up)
     out = st["model"].predict(up)
     out["home_pts"] = (out["pred_total"] + out["pred_margin"]) / 2
     out["away_pts"] = (out["pred_total"] - out["pred_margin"]) / 2
@@ -112,29 +118,60 @@ def nba_game_props(game, table: pd.DataFrame, injuries: dict | None = None) -> p
 
 # ---------------------------------------------------------------- NFL props
 
-def nfl_game_props(game, table: pd.DataFrame) -> pd.DataFrame:
+def nfl_game_props(game, table: pd.DataFrame, report: dict | None = None) -> pd.DataFrame:
+    """Projections for both teams. report = {(team, player_id): P(out)} from the injury
+    report: ruled-out players get no projection, their workload moves to teammates,
+    and only one quarterback (the last game's leader in attempts) is projected."""
     stats = props.NFL_STATS
     of = props.opponent_factors(table, stats, game.date, games=8)
-    recent_pts = {}
     out = []
-    for tid, opp, team_pts in ((game.h_id, game.a_id, game.home_pts),
-                               (game.a_id, game.h_id, game.away_pts)):
+    for tid, opp, team_pts, abbr in ((game.h_id, game.a_id, game.home_pts, game.h_abbr),
+                                     (game.a_id, game.h_id, game.away_pts, game.a_abbr)):
         t = table[(table["team_id"] == tid) & (table["date"] < game.date)]
+        if t.empty:
+            continue
         last = t.drop_duplicates("event_id").tail(2)["event_id"]
         roster = t[t["event_id"].isin(last)][["player_id", "team_id", "pos"]].drop_duplicates(
             "player_id")
         pr = props.project(table, stats, roster, game.date, prior_games=2.0, window=10)
         if pr.empty:
             continue
+        pr["p_out"] = [(report or {}).get((abbr, p), 0.0) for p in pr["player_id"]]
+        full = pr.copy()
+        pr = pr[pr["p_out"] < 0.8].copy()
+        # one starting quarterback
+        lastg = t[t["event_id"] == t.sort_values("date")["event_id"].iloc[-1]]
+        qbs = lastg[lastg["pos"] == "QB"].sort_values("attempts", ascending=False)
+        pr["starting_qb"] = ""
+        if len(qbs):
+            starter = qbs["player_id"].iloc[0]
+            starter_out = (report or {}).get((abbr, starter), 0.0) >= 0.8
+            alive = [q for q in qbs["player_id"] if (report or {}).get((abbr, q), 0.0) < 0.8]
+            lead = alive[0] if alive else None
+            is_qb = pr["pos"] == "QB"
+            keep = pr["player_id"] == lead
+            cols = [c for c in stats if c in pr.columns]
+            pr.loc[is_qb & ~keep, cols] = pr.loc[is_qb & ~keep, cols] * 0.05
+            pr.loc[is_qb & keep, "starting_qb"] = "starter" if not starter_out else "replacement"
+        # workload of players who are out goes to teammates in proportion to their own
+        for pos, cols in (("RB", ["carries", "receptions", "targets"]),
+                          ("WR", ["targets", "receptions", "receiving_yards"]),
+                          ("TE", ["targets", "receptions", "receiving_yards"])):
+            grp = full[full["pos"] == pos]
+            for c in cols:
+                gone = float((grp[c] * grp["p_out"].where(grp["p_out"] >= 0.8, 0.0)).sum())
+                here = pr["pos"] == pos
+                have = float(pr.loc[here, c].sum())
+                if gone > 0 and have > 0:
+                    pr.loc[here, c] = pr.loc[here, c] * (1 + 0.6 * gone / have)
         for s in stats:
             f = float(of[s].get(opp, 1.0)) if s in of else 1.0
             pr[s] = pr[s] * f
         # scoring environment: touchdowns scale with the team's expected points
-        avg = recent_pts.get(tid, 22.5)
-        k = float(np.clip(team_pts / avg, 0.7, 1.4))
+        k = float(np.clip(team_pts / 22.5, 0.7, 1.4))
         for s in ("passing_tds", "rushing_tds", "receiving_tds"):
             pr[s] *= k
         pr["anytime_td"] = 1 - np.exp(-(pr["rushing_tds"] + pr["receiving_tds"]))
-        pr["team"] = tid
+        pr["team"] = abbr
         out.append(pr)
     return pd.concat(out, ignore_index=True) if out else pd.DataFrame()

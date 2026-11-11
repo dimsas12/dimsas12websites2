@@ -14,6 +14,7 @@ from . import espn_data as E
 from .model import GoalModel, RatingConfig, _fit_poisson, run_ratings
 
 MODEL_PATH = E.ROOT / "data" / "soccer" / "model.pkl"
+ABSENT: dict = {}  # {team_id: {player_id: P(out)}} for the last `upcoming` call
 CORNER_CFG = RatingConfig(k=0.02, goal_weight=1.0, mu0=5.0, hfa0=0.12, new_team=0.0,
                           tier_gap=0.0, k_strength=0.004)
 
@@ -54,6 +55,10 @@ def rate_all(df: pd.DataFrame, cfg: RatingConfig | None = None) -> pd.DataFrame:
     cm["played"] = cm["played"] & cm["hc"].notna() & cm["ac"].notna()
     c, _ = run_ratings(cm, CORNER_CFG, corner_perf)
     rated["ch0"], rated["ca0"] = c["lh0"].to_numpy(), c["la0"].to_numpy()
+    from . import props
+    if (props.espn.ROOT / "data" / "soccer" / "lineups.csv").exists():
+        from . import avail_soccer
+        rated = avail_soccer.with_missing(rated)
     return rated
 
 
@@ -113,4 +118,12 @@ def upcoming(days: float = 3.0, leagues=None) -> pd.DataFrame:
                & (rated["state"] == "pre")]
     if leagues:
         up = up[up["div"].isin(leagues)]
-    return load_model().predict(up) if len(up) else up
+    if not len(up):
+        return up
+    ABSENT.clear()
+    if load_model().goals.avail:
+        from . import avail_soccer
+        names = dict(zip(rated["home"], rated["h_name"])) | dict(zip(rated["away"], rated["a_name"]))
+        up, outs = avail_soccer.upcoming_missing(up, names)
+        ABSENT.update(outs)
+    return load_model().predict(up)

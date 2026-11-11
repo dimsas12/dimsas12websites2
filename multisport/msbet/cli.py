@@ -14,6 +14,8 @@ def _soccer(args) -> None:
             data.download()
             df = espn_data.download()
             print(f"ESPN matches: {len(df)} ({int(df['played'].sum())} played)")
+            from .soccer import props as sprops
+            sprops.download_lineups(df, "2022-08-01", sprops.LINEUP_LEAGUES)
         print(pipeline.build())
     elif args.command == "backtest":
         print(value.report(args.min_edge))
@@ -66,7 +68,7 @@ def _us(args) -> None:
             else:
                 data.download_schedule(code)
                 if code == "nba":
-                    data.download_boxes("nba", args.first_season)
+                    data.download_boxes("nba", args.first_season or 2022)
         print(pipeline.build(code))
     elif args.command == "lines":
         df = data.download_lines(code, args.first_season)

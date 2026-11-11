@@ -62,3 +62,22 @@ tennis 1 per active tournament. A full daily run of everything is roughly 20-30
 credits, so the free 500/month covers about two weeks of daily use; player-prop odds
 cost extra per game and are not fetched by default. `MSBET_REPLAY=1` re-uses the last
 saved snapshot without spending credits.
+
+
+## Absences (injuries, suspensions)
+
+| Sport | Source of absences | Effect tested (out of sample) |
+|---|---|---|
+| EuroLeague | injury feed + inference (see `../euroleague-model`) | in the main model |
+| NBA | ESPN injury report per game | team margin error 11.27 -> 11.18 (2024-26); props drop / redistribute minutes |
+| NFL | nflverse injury report (game status, else practice, else last week's Outs) | margin error 10.17 -> 10.12 (2020-26); one projected QB, workload of absent players moved to teammates |
+| Football | Premier League: official FPL availability list; every club: regulars who missed recent matches (P(out) learned by streak length) and red cards | log loss 0.9684 -> 0.9676, goals deviance 1.679 -> 1.671 (2023-26); props drop / scale absent players; `Absences` sheet lists them |
+| Tennis | none: withdrawals leave the draw; recent retirements and long layoffs were tested and did not help | - |
+| NCAA basketball | tested with inferred absences; no gain (9.641 -> 9.654), so not used | - |
+| NCAA football | no player data | - |
+
+Mechanics: `msbet/avail.py` computes, for each team-game, the value (exposure x
+production above replacement) of regulars who did not play; the game model learns the
+cost of one unit of missing value from earlier seasons. For upcoming games the same
+sum is weighted by each player's chance of being out. The gains are small: the market
+already prices absences, and the statistical models still lose to closing lines.

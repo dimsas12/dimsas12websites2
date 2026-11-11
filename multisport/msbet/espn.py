@@ -37,8 +37,11 @@ def _get(url: str, params: dict | None = None, retries: int = 3) -> dict | None:
 def _cached(path: Path, fetch, max_age_h: float | None) -> dict | None:
     if path.exists() and (max_age_h is None
                           or time.time() - path.stat().st_mtime < max_age_h * 3600):
-        with gzip.open(path, "rt", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError, EOFError):  # truncated by an interrupted run: refetch
+            path.unlink(missing_ok=True)
     data = fetch()
     if data is not None:
         path.parent.mkdir(parents=True, exist_ok=True)

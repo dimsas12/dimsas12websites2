@@ -120,16 +120,34 @@ def export(days: float = 1.5, leagues: list[str] | None = None, with_odds: bool 
                 hist = props.team_history(rated, tid, g.date)
                 if hist.empty:
                     continue
-                tb = props.prop_table(props.project(hist, lam))
+                pr = props.project(hist, lam)
+                pout = P.ABSENT.get(tid, {})
+                if pout and len(pr):
+                    pr["p_out"] = pr["player_id"].map(pout).fillna(0.0)
+                    pr = pr[pr["p_out"] < 0.8].copy()
+                    pr["p_start"] = pr["p_start"] * (1 - pr["p_out"])
+                tb = props.prop_table(pr)
+                if "p_out" in pr and len(tb):
+                    tb.insert(4, "P(out)", pr["p_out"].to_numpy())
                 if tb.empty:
                     continue
                 pct = [c for c in tb.columns if c in ("p_start", "scorer", "2+ goals", "assist",
-                                                      "card") or c.endswith("+")]
+                                                      "card", "P(out)") or c.endswith("+")]
                 r = xl.write_df(wp, tb, r, pct=tuple(pct),
                                 title=f"{g.h_name} - {g.a_name}: {name} (team xG {lam:.2f}) - "
                                       f"probabilities if the player starts")
         xl.autofit(wp)
 
+    if P.ABSENT:
+        from .avail_soccer import absence_table
+        rated_all = pd.read_pickle(P.MODEL_PATH.with_name("rated_espn.pkl"))
+        names = dict(zip(rated_all["home"], rated_all["h_name"])) | dict(
+            zip(rated_all["away"], rated_all["a_name"]))
+        wa = wb.create_sheet("Absences")
+        at = absence_table(P.ABSENT, names)
+        xl.write_df(wa, at, pct=("P(out)",),
+                    title="Players assumed absent (their chance of missing the match)")
+        xl.autofit(wa)
     xl.notes(wb, [
         "ΠΩΣ ΔΙΑΒΑΖΕΤΑΙ",
         "Value bets: η δίκαιη πιθανότητα βγαίνει από Pinnacle/ανταλλακτήρια χωρίς τη γκανιότα. "
