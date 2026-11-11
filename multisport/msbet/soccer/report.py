@@ -8,6 +8,7 @@ from openpyxl import Workbook
 
 from .. import odds as O
 from .. import xl
+from ..window import clip
 from . import espn_data as E
 from . import pipeline as P
 from . import props
@@ -74,6 +75,7 @@ def export(days: float = 1.5, leagues: list[str] | None = None, with_odds: bool 
     if with_odds:
         played = [lg for lg in leagues if lg in set(up["div"])] if len(up) else []
         picks, full, log = value_bets(played, min_edge)
+        picks, full = clip(picks, "commence", days), clip(full, "commence", days)
         cols = ["commence", "league", "home_team", "away_team", "market", "selection", "point",
                 "best_odds", "book", "fair_odds", "fair_p", "edge", "fair_source"]
         if not picks.empty:

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from .. import espn
+from ..window import now as _now
 from . import data, props
 from .model import CONFIGS, GameModel, run
 
@@ -34,7 +35,7 @@ def load(code: str) -> dict:
 def upcoming(code: str, days: float = 2.0) -> pd.DataFrame:
     st = load(code)
     r = st["rated"]
-    now = pd.Timestamp.now(tz="UTC").tz_convert(None)
+    now = _now()
     up = r[~r["completed"] & (r["date"] > now) & (r["state"].fillna("pre") == "pre")
            & (r["date"] <= now + pd.Timedelta(days=days))]
     if up.empty:

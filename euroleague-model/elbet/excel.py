@@ -83,6 +83,8 @@ def _latest_board(game_ids: set[str]) -> tuple[pd.DataFrame, str | None]:
     files = sorted(glob.glob(str(config.REPORTS_DIR / "markets_*.csv")))
     for f in reversed(files):
         b = pd.read_csv(f)
+        if "game_id" not in b:
+            continue
         b = b[b["game_id"].isin(game_ids)]
         if not b.empty:
             stamp = Path(f).stem.replace("markets_", "")

@@ -7,6 +7,7 @@ from openpyxl import Workbook
 
 from .. import odds as O
 from .. import xl
+from ..window import clip
 from . import data
 from . import pipeline as P
 
@@ -60,6 +61,7 @@ def export(days: float = 2.0, with_odds: bool = False, min_edge: float = 0.02, o
     row = 1
     if with_odds:
         full, log = value_bets(min_edge)
+        full = clip(full, "commence", days)
         picks = O.picks(full, min_edge) if not full.empty else full
         cols = ["commence", "league", "home_team", "away_team", "selection", "best_odds",
                 "book", "fair_odds", "fair_p", "edge", "fair_source"]

@@ -8,6 +8,7 @@ from openpyxl import Workbook
 
 from .. import odds as O
 from .. import xl
+from ..window import clip
 from . import data, pipeline, props
 
 REPORTS = data.ROOT / "reports"
@@ -115,7 +116,7 @@ def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bo
     row, full = 1, pd.DataFrame()
     if with_odds and len(up):
         events, quota = O.fetch(O.SPORT_KEYS[code], "h2h,spreads,totals", regions)
-        full = O.value_table(O.flatten(events))
+        full = clip(O.value_table(O.flatten(events)), "commence", days)
         picks = O.picks(full, min_edge) if len(full) else full
         cols = ["commence", "home_team", "away_team", "market", "selection", "point",
                 "best_odds", "book", "fair_odds", "fair_p", "edge", "fair_source"]

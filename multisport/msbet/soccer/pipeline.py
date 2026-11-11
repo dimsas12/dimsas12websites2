@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import nbinom
 
+from ..window import now as _now
 from . import espn_data as E
 from .model import GoalModel, RatingConfig, _fit_poisson, run_ratings
 
@@ -106,7 +107,7 @@ def load_model() -> SoccerModel:
 
 def upcoming(days: float = 3.0, leagues=None) -> pd.DataFrame:
     rated = pd.read_pickle(MODEL_PATH.with_name("rated_espn.pkl"))
-    now = pd.Timestamp.now(tz="UTC").tz_convert(None)
+    now = _now()
     up = rated[~rated["played"] & (rated["date"] > now)
                & (rated["date"] <= now + pd.Timedelta(days=days))
                & (rated["state"] == "pre")]

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import nbinom
 
+from ..window import now as _now
 from . import data
 from .model import EloConfig, mixed_markets, run, solve_points
 
@@ -122,6 +123,6 @@ def aces_over(mean: float, line: float) -> float:
 
 def upcoming(days: float = 2.0) -> pd.DataFrame:
     m = data.combined()
-    now = pd.Timestamp.now(tz="UTC").tz_convert(None)
+    now = _now()
     return m[(m["state"] == "pre") & (m["date"] > now)
              & (m["date"] <= now + pd.Timedelta(days=days))]
