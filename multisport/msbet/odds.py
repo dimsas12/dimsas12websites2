@@ -50,6 +50,11 @@ def fetch(sport_key: str, markets: str = "h2h,totals,spreads", regions: str = "e
           event_id: str | None = None) -> tuple[list, dict]:
     """Odds for a sport (or one event, for props). Each call costs
     (#markets x #regions) credits; the remaining quota is returned."""
+    if os.environ.get("MSBET_REPLAY"):  # reuse the last saved snapshot (no credits)
+        files = sorted(ARCHIVE.glob(f"{sport_key}_*.json"))
+        if not files:
+            raise FileNotFoundError(f"no saved odds for {sport_key}")
+        return json.loads(files[-1].read_text()), {"remaining": "replay", "used": "0"}
     path = f"/sports/{sport_key}/odds" if event_id is None \
         else f"/sports/{sport_key}/events/{event_id}/odds"
     r = requests.get(API + path, params={"apiKey": api_key(), "regions": regions,
@@ -73,11 +78,13 @@ def active_sports(prefix: str) -> list[str]:
     return [s["key"] for s in r.json() if s["key"].startswith(prefix) and s.get("active")]
 
 
-def flatten(events: list) -> pd.DataFrame:
+def flatten(events: list, future_only: bool = True) -> pd.DataFrame:
     rows = []
     for e in events:
         for b in e.get("bookmakers", []):
             for m in b.get("markets", []):
+                if m["key"].endswith("_lay"):  # exchange lay prices are not backable odds
+                    continue
                 for o in m.get("outcomes", []):
                     price = float(o["price"])
                     c = COMMISSION.get(b["key"], 0.0)
@@ -89,6 +96,8 @@ def flatten(events: list) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     if not df.empty:
         df["commence"] = pd.to_datetime(df["commence"], utc=True).dt.tz_convert(None)
+        if future_only:  # games in play carry live odds: never price those
+            df = df[df["commence"] > pd.Timestamp.now(tz="UTC").tz_convert(None)]
     return df
 
 
@@ -126,7 +135,8 @@ def value_table(rows: pd.DataFrame, allowed: set[str] | None = None,
             if not probs:
                 continue
             sharp = [b for b in SHARP if b in probs]
-            if sharp:
+            # one thin exchange alone is not a reliable fair price: need Pinnacle or two
+            if sharp and ("pinnacle" in sharp or len(sharp) >= 2):
                 fair, source = np.mean([probs[b] for b in sharp], axis=0), "+".join(sharp)
             elif len(probs) >= min_books:
                 fair, source = np.median(list(probs.values()), axis=0), f"consensus({len(probs)})"

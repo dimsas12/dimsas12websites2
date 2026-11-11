@@ -123,5 +123,5 @@ def aces_over(mean: float, line: float) -> float:
 def upcoming(days: float = 2.0) -> pd.DataFrame:
     m = data.combined()
     now = pd.Timestamp.now(tz="UTC").tz_convert(None)
-    return m[(m["state"] == "pre") & (m["date"] >= now - pd.Timedelta(hours=3))
+    return m[(m["state"] == "pre") & (m["date"] > now)
              & (m["date"] <= now + pd.Timedelta(days=days))]

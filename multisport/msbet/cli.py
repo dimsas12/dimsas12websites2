@@ -54,6 +54,37 @@ def _tennis(args) -> None:
         print(f"wrote {report.export(args.days, args.odds, args.min_edge)}")
 
 
+def _us(args) -> None:
+    from .us import data, pipeline, props, report
+
+    code = args.sport
+    if args.command in ("update", "build"):
+        if args.command == "update":
+            if code == "nfl":
+                data.download_nfl()
+                props.download_nfl_players()
+            else:
+                data.download_schedule(code)
+                if code == "nba":
+                    data.download_boxes("nba", args.first_season)
+        print(pipeline.build(code))
+    elif args.command == "lines":
+        df = data.download_lines(code, args.first_season)
+        print(f"lines for {df['spread'].notna().sum()} games")
+    elif args.command == "backtest":
+        from .us import model
+        g = data.games_with_lines(code)
+        p = model.walk_forward(g, model.CONFIGS[code], args.first_season or 2023)
+        for k, v in model.evaluate(p).items():
+            print(f"{k:22s} {v:.3f}" if isinstance(v, float) else f"{k:22s} {v}")
+    elif args.command == "predict":
+        up = pipeline.upcoming(code, args.days)
+        print(report.games_table(up).drop(columns=["book spread (home)", "book total"]).round(
+            2).to_string(index=False) if len(up) else "no games in the window")
+    elif args.command == "excel":
+        print(f"wrote {report.export(code, args.days, args.odds, not args.no_props, False, args.min_edge, args.regions)}")
+
+
 def main(argv=None) -> None:
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     ap = argparse.ArgumentParser(prog="msbet", description=__doc__)
@@ -74,6 +105,21 @@ def main(argv=None) -> None:
     t.add_argument("--odds", action="store_true")
     t.add_argument("--min-edge", type=float, default=0.02)
     t.set_defaults(func=_tennis)
+
+    for code, helptext in (("nba", "NBA: lines and player props"),
+                           ("nfl", "NFL: lines and player props"),
+                           ("ncaab", "NCAA basketball: main lines"),
+                           ("ncaaf", "NCAA football: main lines")):
+        u = sports.add_parser(code, help=helptext)
+        u.add_argument("command", choices=["update", "build", "lines", "backtest", "predict",
+                                           "excel"])
+        u.add_argument("--days", type=float, default=2.0 if code != "nfl" else 7.0)
+        u.add_argument("--odds", action="store_true")
+        u.add_argument("--no-props", action="store_true")
+        u.add_argument("--min-edge", type=float, default=0.02)
+        u.add_argument("--regions", default="eu")
+        u.add_argument("--first-season", type=int)
+        u.set_defaults(func=_us)
 
     args = ap.parse_args(argv)
     args.func(args)

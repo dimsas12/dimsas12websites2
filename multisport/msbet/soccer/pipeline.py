@@ -107,7 +107,7 @@ def load_model() -> SoccerModel:
 def upcoming(days: float = 3.0, leagues=None) -> pd.DataFrame:
     rated = pd.read_pickle(MODEL_PATH.with_name("rated_espn.pkl"))
     now = pd.Timestamp.now(tz="UTC").tz_convert(None)
-    up = rated[~rated["played"] & (rated["date"] >= now - pd.Timedelta(hours=2))
+    up = rated[~rated["played"] & (rated["date"] > now)
                & (rated["date"] <= now + pd.Timedelta(days=days))
                & (rated["state"] == "pre")]
     if leagues:
