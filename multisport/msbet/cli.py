@@ -85,6 +85,11 @@ def _us(args) -> None:
         print(f"wrote {report.export(code, args.days, args.odds, not args.no_props, False, args.min_edge, args.regions)}")
 
 
+def _daily(args) -> None:
+    from . import daily
+    daily.run(args.date, args.tz, not args.no_odds, args.only)
+
+
 def main(argv=None) -> None:
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     ap = argparse.ArgumentParser(prog="msbet", description=__doc__)
@@ -120,6 +125,13 @@ def main(argv=None) -> None:
         u.add_argument("--regions", default="eu")
         u.add_argument("--first-season", type=int)
         u.set_defaults(func=_us)
+
+    d = sports.add_parser("daily", help="every sport for the next day: Excel files + one zip")
+    d.add_argument("--date", help="local day to project, YYYY-MM-DD (default: tomorrow)")
+    d.add_argument("--tz", default="Europe/Athens")
+    d.add_argument("--no-odds", action="store_true")
+    d.add_argument("--only", nargs="*", help="sports to run, e.g. nba tennis")
+    d.set_defaults(func=_daily)
 
     args = ap.parse_args(argv)
     args.func(args)
