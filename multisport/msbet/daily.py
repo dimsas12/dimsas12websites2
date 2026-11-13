@@ -63,6 +63,8 @@ def run(date: str | None = None, tz: str = "Europe/Athens", odds: bool = True,
             return
         try:
             res = fn()
+            if res is None:  # nothing to project that day
+                return
             files.append(Path(res))
             log.append(f"OK    {name}")
         except Exception as exc:  # noqa: BLE001 - one sport must not stop the rest
@@ -128,6 +130,9 @@ def run(date: str | None = None, tz: str = "Europe/Athens", odds: bool = True,
             if cmd is None:
                 continue
             p = _run([sys.executable, "-m", "elbet.cli", *cmd], EURO, env)
+            if p.returncode and "no games on" in p.stderr:
+                log.append("note  euroleague: no games that day (no file)")
+                return None
             if p.returncode and cmd[0] != "picks":
                 raise RuntimeError(f"elbet {cmd[0]}: {p.stderr.strip().splitlines()[-1:]}")
             if p.returncode:
