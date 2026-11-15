@@ -87,7 +87,9 @@ def export(days: float = 2.0, with_odds: bool = False, min_edge: float = 0.02, o
         rows = [match_row(state, m) for m in up.itertuples(index=False)]
         mk = pd.DataFrame(rows).drop(columns="_need")
         pct = [c for c in mk.columns if c.startswith(("P(", "sets ", "over "))]
-        xl.write_df(wm, mk, pct=tuple(pct), input_cols=("your odds 1", "your odds 2"))
+        xl.write_df(wm, mk, pct=tuple(pct), input_cols=("your odds 1", "your odds 2"),
+                    title="Πιθανότητες μοντέλου (ενημερωτικά, δεν έχουν ελεγχθεί απέναντι σε "
+                          "αποδόσεις). Δεν είναι προτάσεις.")
         xl.autofit(wm)
     else:
         wm.cell(row=1, column=1, value="No scheduled matches in the window.")

@@ -78,9 +78,28 @@ def nfl_props_table(pr: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def model_edges(up: pd.DataFrame, table: pd.DataFrame, model) -> pd.DataFrame:
-    """Model view of the market lines (information only: the model alone does not
-    beat closing lines in the backtest)."""
+# How much of the model's disagreement with the closing line is real, by league and
+# market: the weight a regression of the result on (line, model - line) gives the model
+# in walk-forward tests (NBA 2023-27, NFL 2013-26, NCAAB 2026-27, NCAAF 2023-26).
+# Negative or zero weights are set to 0: there the model adds nothing to the line.
+MODEL_WEIGHT = {"nba": {"spreads": 0.10, "totals": 0.0, "h2h": 0.10},
+                "nfl": {"spreads": 0.18, "totals": 0.0, "h2h": 0.18},
+                "ncaab": {"spreads": 0.0, "totals": 0.0, "h2h": 0.0},
+                "ncaaf": {"spreads": 0.0, "totals": 0.0, "h2h": 0.0}}
+
+# NBA points props: bet the under when the model gives it 65%+ against the book line.
+# Test against ESPN BET / DraftKings closing lines, 2024-26, 754 bets: 57.8% won,
+# ROI +12.8% (overs at the same threshold: -7.5%, so they are not flagged).
+PROP_RULE = {"stat": "pts", "min_p_under": 0.65}
+LAST_PICKS: list = []  # picks of the last export (collected by msbet.daily for top picks)
+LAST_PICKS_NBA: list = []
+
+
+def model_edges(up: pd.DataFrame, table: pd.DataFrame, model, code: str = "nba"
+                ) -> pd.DataFrame:
+    """Model view of the market lines. The model's number is first pulled toward the
+    market by the weight the backtest gives it (MODEL_WEIGHT); the raw number is shown
+    for reference only: on its own it loses to closing lines in every US league."""
     if table.empty or up.empty:
         return pd.DataFrame()
     rows = []
@@ -90,28 +109,67 @@ def model_edges(up: pd.DataFrame, table: pd.DataFrame, model) -> pd.DataFrame:
                   & (table["away_team"].fillna("").str.contains(str(g.a_name).split()[-1],
                                                                 regex=False))]
         for r in t.itertuples(index=False):
+            w = MODEL_WEIGHT.get(code, {}).get(r.market, 0.0)
             if r.market == "spreads" and r.point == r.point:
                 home_line = r.point if r.selection == r.home_team else -r.point
-                p = float(model.p_cover(g.pred_margin, home_line))
-                p = p if r.selection == r.home_team else 1 - p
+                p_raw = float(model.p_cover(g.pred_margin, home_line))
+                adj = -home_line + w * (g.pred_margin + home_line)
+                p = float(model.p_cover(adj, home_line))
+                if r.selection != r.home_team:
+                    p, p_raw = 1 - p, 1 - p_raw
             elif r.market == "totals" and r.point == r.point:
-                p = float(model.p_over(g.pred_total, r.point))
-                p = p if r.selection == "Over" else 1 - p
+                p_raw = float(model.p_over(g.pred_total, r.point))
+                p = float(model.p_over(r.point + w * (g.pred_total - r.point), r.point))
+                if r.selection != "Over":
+                    p, p_raw = 1 - p, 1 - p_raw
             elif r.market == "h2h":
-                p = g.p_home if r.selection == r.home_team else 1 - g.p_home
+                p_raw = g.p_home if r.selection == r.home_team else 1 - g.p_home
+                p = r.fair_p + w * (p_raw - r.fair_p)
             else:
                 continue
             rows.append({"date": g.date, "game": f"{g.a_name} @ {g.h_name}", "market": r.market,
                          "selection": r.selection, "line": r.point, "best_odds": r.best_odds,
-                         "book": r.book, "market fair p": r.fair_p, "model p": p,
-                         "market edge": r.edge, "model edge": p * r.best_odds - 1})
+                         "book": r.book, "market fair p": r.fair_p,
+                         "model p (raw, not reliable)": p_raw, "model p (market-adjusted)": p,
+                         "edge (market-adjusted)": p * r.best_odds - 1})
     return pd.DataFrame(rows)
+
+
+def points_vs_book(g, pr: pd.DataFrame) -> list[dict]:
+    """Model probabilities against today's DraftKings points lines for one game."""
+    from . import prop_lines
+    try:
+        lines = prop_lines.current(g.event_id)
+    except Exception:  # noqa: BLE001 - lines not published yet
+        return []
+    if lines.empty:
+        return []
+    lines = lines[lines["stat"] == "pts"]
+    proj = pr.set_index("player_id")
+    rows = []
+    for x in lines.itertuples(index=False):
+        if x.player_id not in proj.index:
+            continue
+        p = proj.loc[x.player_id]
+        p = p.iloc[0] if isinstance(p, pd.DataFrame) else p
+        po = props.p_over(p["pts"], x.line, "pts", "nba")
+        pu = 1 - po
+        rows.append({"date": g.date, "game": f"{g.a_name} @ {g.h_name}", "player": p["player"],
+                     "player_id": x.player_id,
+                     "status": p.get("status", ""), "proj min": p["min"], "model PTS": p["pts"],
+                     "DK line": x.line, "DK prices": f"{x.price_lo:.2f} / {x.price_hi:.2f}",
+                     "P(over)": po, "P(under)": pu,
+                     "P(under) line-1": 1 - props.p_over(p["pts"], x.line - 1, "pts", "nba"),
+                     "P(under) line+1": 1 - props.p_over(p["pts"], x.line + 1, "pts", "nba"),
+                     "pick": f"UNDER {x.line:g}" if pu >= PROP_RULE["min_p_under"] else ""})
+    return rows
 
 
 def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bool = True,
            prop_odds: bool = False, min_edge: float = 0.02, regions: str = "eu", out=None):
     st = pipeline.load(code)
     up = pipeline.upcoming(code, days)
+    LAST_PICKS.clear()
     wb = Workbook()
     ws = wb.active
     ws.title = "Value bets"
@@ -132,10 +190,14 @@ def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bo
                                          f"{quota['remaining']}")
         if len(full):
             w2 = wb.create_sheet("Model vs market")
-            me = model_edges(up, full, st["model"])
+            me = model_edges(up, full, st["model"], code)
             if len(me):
-                xl.write_df(w2, me, pct=("market fair p", "model p", "market edge",
-                                         "model edge"))
+                xl.write_df(w2, me, pct=("market fair p", "model p (raw, not reliable)",
+                                         "model p (market-adjusted)",
+                                         "edge (market-adjusted)"),
+                            title="ΜΗΝ παίζεις τη διαφορά μοντέλου-γραμμής: σε 4 λίγκες "
+                                  "χάνει 4-8% (backtest). Η στήλη market-adjusted δείχνει "
+                                  "πόσο αξίζει πραγματικά.")
                 xl.autofit(w2)
     elif not with_odds:
         ws.cell(row=1, column=1, value="Run with --odds (needs ODDS_API_KEY) to list value bets.")
@@ -144,7 +206,9 @@ def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bo
     wg = wb.create_sheet("Games")
     if len(up):
         xl.write_df(wg, games_table(up), pct=("P(home wins)",),
-                    input_cols=("book spread (home)", "book total"))
+                    input_cols=("book spread (home)", "book total"),
+                    title="Προβλέψεις μοντέλου (ενημερωτικά). Όταν διαφέρουν από τη γραμμή, "
+                          "συνήθως κάνει λάθος το μοντέλο - δεν είναι προτάσεις.")
         xl.autofit(wg)
     else:
         wg.cell(row=1, column=1, value="No games in the window.")
@@ -155,10 +219,13 @@ def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bo
             data.DIR / "nfl_players.csv", parse_dates=["date"])
         r = 1
         nfl_cache: dict = {}
+        dk_rows: list = []
         for g in up.itertuples(index=False):
             if code == "nba":
                 pr = pipeline.nba_game_props(g, table, pipeline.nba_injuries(g.event_id))
                 tb = nba_props_table(pr) if len(pr) else pr
+                if len(pr):
+                    dk_rows += points_vs_book(g, pr)
             else:
                 from .avail_us import nfl_report
                 rep = nfl_cache.setdefault((int(g.season), int(g.week)),
@@ -172,6 +239,21 @@ def export(code: str, days: float = 2.0, with_odds: bool = False, with_props: bo
                             title=f"{g.a_name} @ {g.h_name}  ({g.date:%a %d %b %H:%M} UTC)  "
                                   f"model {g.away_pts:.0f}-{g.home_pts:.0f}")
         xl.autofit(wp)
+        if code == "nba":
+            wk = wb.create_sheet("Points vs DraftKings", 1)
+            dk = pd.DataFrame(dk_rows)
+            if len(dk):
+                dk = dk.sort_values("P(under)", ascending=False)
+                xl.write_df(wk, dk, pct=("P(over)", "P(under)", "P(under) line-1",
+                                         "P(under) line+1"),
+                            title="Πόντοι παικτών έναντι της γραμμής DraftKings. PICK = "
+                                  "under με P>=65% (backtest 2024-26: 754 bets, 57,8%, "
+                                  "ROI +12,8%). Τα overs δεν προτείνονται (-7,5%).")
+                LAST_PICKS.extend(dk[dk["pick"] != ""].assign(sport="NBA props").to_dict(
+                    "records"))
+            else:
+                wk.cell(row=1, column=1, value="No DraftKings player lines published yet.")
+            xl.autofit(wk)
 
     wr = wb.create_sheet("Power ratings")
     names = dict(zip(st["rated"]["h_id"], st["rated"]["h_name"]))

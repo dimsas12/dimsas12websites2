@@ -92,7 +92,7 @@ def nba_game_props(game, table: pd.DataFrame, injuries: dict | None = None) -> p
         roster = t[t["event_id"].isin(recent)][["player_id", "team_id", "pos"]].drop_duplicates(
             "player_id")
         pr = props.project(table[table["team_id"] == tid], stats, roster, game.date,
-                           exposure="min")
+                           exposure="min", **props.NBA_PROJECT)
         if pr.empty:
             continue
         pr["status"] = pr["player_id"].map(injuries or {}).fillna("")

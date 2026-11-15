@@ -81,3 +81,28 @@ production above replacement) of regulars who did not play; the game model learn
 cost of one unit of missing value from earlier seasons. For upcoming games the same
 sum is weighted by each player's chance of being out. The gains are small: the market
 already prices absences, and the statistical models still lose to closing lines.
+
+## Review after the first week (15 Nov 2026)
+
+A hand-made "top 20 edges" list, ranked by how far each model number was from the
+book line, went 28-37 (-13.9 units, ROI -21%). What was wrong:
+
+1. **Ranking by model-vs-line gap selects model errors.** Regressing results on the
+   closing line and the model's deviation from it gives the model a weight of 0.10
+   (NBA spreads), 0.18 (NFL spreads) and about 0 for NCAAB, NCAAF and every totals
+   market. A 10-point "edge" is therefore worth 1-2 points or nothing; the biggest gaps
+   lose most (NCAAB gaps of 8+: -9.5%). The workbooks now say so on the sheets, and the
+   "Model vs market" sheet shows the market-adjusted probability.
+2. **NBA props shrank stars toward the position average.** The top fifth of players beat
+   their projection by +1.15 points and +0.42 assists, hence the stream of unders on
+   stars. New settings (`NBA_PROJECT`) remove the bias and lower the error.
+3. **Props were picked in markets with no evidence** (assists, rebounds, at a book the
+   model was never tested against). Against 3,151 historical DraftKings/ESPN BET
+   points lines the only rule that held up: points under when P(under) >= 65%
+   (754 bets 2024-26, 57.8%, ROI +12.8%; positive in each season; overs -7.5%).
+   Caveat: the test used who actually played, so it knew injuries a little better than
+   a pre-game run does.
+
+New: `top_picks_<date>.xlsx` in the daily zip lists only backed picks (football value
+rule, NBA points unders vs DraftKings), logs every pick to `history/picks_log.csv` and
+grades past picks automatically (Results sheet).

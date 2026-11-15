@@ -15,6 +15,7 @@ from . import props
 from .model import ah_ev, ah_value, score_matrix
 
 REPORTS = E.ROOT / "reports"
+LAST_PICKS: list = []  # value bets of the last export (collected by msbet.daily)
 DEFAULT_LEAGUES = ["eng.1", "esp.1", "ger.1", "gre.1", "uefa.champions", "uefa.europa",
                    "uefa.europa.conf"] + list(E.NATIONAL)
 
@@ -76,6 +77,9 @@ def export(days: float = 1.5, leagues: list[str] | None = None, with_odds: bool 
         played = [lg for lg in leagues if lg in set(up["div"])] if len(up) else []
         picks, full, log = value_bets(played, min_edge)
         picks, full = clip(picks, "commence", days), clip(full, "commence", days)
+        LAST_PICKS.clear()
+        if len(picks):
+            LAST_PICKS.extend(picks.assign(sport="Football").to_dict("records"))
         cols = ["commence", "league", "home_team", "away_team", "market", "selection", "point",
                 "best_odds", "book", "fair_odds", "fair_p", "edge", "fair_source"]
         if not picks.empty:
@@ -106,7 +110,10 @@ def export(days: float = 1.5, leagues: list[str] | None = None, with_odds: bool 
         mk.insert(11, "your odds 2", None)
         pct = [c for c in mk.columns if c.startswith(("P(", "over", "BTTS", "corners over"))]
         xl.write_df(wm, mk, pct=tuple(pct), input_cols=("your odds 1", "your odds X",
-                                                        "your odds 2"))
+                                                        "your odds 2"),
+                    title="Πιθανότητες στατιστικού μοντέλου (ενημερωτικά). Σε 25.335 ματς "
+                          "χάνουν από την αγορά (1Χ2 και over/under) - ΜΗΝ τις παίζεις "
+                          "απέναντι στη γραμμή. Προτάσεις: μόνο το φύλλο Value bets.")
         xl.autofit(wm)
     else:
         wm.cell(row=1, column=1, value="No matches in the window.")

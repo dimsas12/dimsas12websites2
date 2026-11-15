@@ -115,10 +115,15 @@ def run(date: str | None = None, tz: str = "Europe/Athens", odds: bool = True,
                     udata.download_boxes("nba", 2022)
             upipe.build(code)
             out = out_dir / f"{code}_{local:%Y-%m-%d}.xlsx"
-            return with_fallback(
+            if code == "nba":
+                ureport.LAST_PICKS_NBA.clear()
+            res = with_fallback(
                 lambda: ureport.export(code, WINDOW_DAYS, True, True, False, 0.02, "eu", out),
                 lambda: ureport.export(code, WINDOW_DAYS, False, True, False, 0.02, "eu", out),
                 code)()
+            if code == "nba":
+                ureport.LAST_PICKS_NBA.extend(ureport.LAST_PICKS)
+            return res
         return go
 
     # ---- EuroLeague (separate project)
@@ -145,6 +150,19 @@ def run(date: str | None = None, tz: str = "Europe/Athens", odds: bool = True,
     for code in ("nba", "nfl", "ncaab", "ncaaf"):
         step(code, us(code))
     step("euroleague", euroleague)
+
+    # ---- the short list of backed picks + running results
+    try:
+        from . import top
+        picks = top.collect(f"{local:%Y-%m-%d}", list(sreport.LAST_PICKS),
+                            list(ureport.LAST_PICKS_NBA))
+        top.append_log(picks)
+        files.insert(0, top.export(f"{local:%Y-%m-%d}", picks,
+                                   out_dir / f"top_picks_{local:%Y-%m-%d}.xlsx"))
+        log.append(f"OK    top picks: {len(picks)}")
+    except Exception as exc:  # noqa: BLE001
+        log.append(f"FAIL  top picks: {exc.__class__.__name__}: {exc}")
+        traceback.print_exc()
 
     (out_dir / "summary.txt").write_text("\n".join(log) + "\n", encoding="utf-8")
     zip_path = out_dir / f"projections_{local:%Y-%m-%d}.zip"

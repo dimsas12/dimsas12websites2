@@ -121,6 +121,13 @@ def opponent_factors(hist: pd.DataFrame, stats: list[str], as_of: pd.Timestamp,
     return 1 + damp * (allowed / league - 1)
 
 
+# Projection settings for the NBA. The first version (prior 3 games of the position
+# average, 12-game window, decay 0.90) shrank too hard: the top fifth of players by
+# projection beat it by +1.15 points and +0.42 assists a game (2025-26), which is why it
+# kept finding "unders" on stars. These settings remove that bias and lower the error.
+NBA_PROJECT = {"prior_games": 0.5, "window": 25, "decay": 0.95}
+
+
 # ---------------------------------------------------------------- distributions
 
 NBA_ALPHA = {"pts": 0.13, "reb": 0.13, "ast": 0.20, "fg3m": 0.25, "stl": 0.15, "blk": 0.30,
