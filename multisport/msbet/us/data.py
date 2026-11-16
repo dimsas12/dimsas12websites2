@@ -173,8 +173,15 @@ def download_boxes(code: str, first_season: int | None = None, workers: int = 8
     if first_season:
         g = g[g["season"] >= first_season]
 
+    # summaries cached before a game finished hold no player lines: refetch recent
+    # games and any whose cached summary yielded no rows
+    recent = set(g.loc[g["date"] >= pd.Timestamp.now().normalize() - pd.Timedelta(days=7),
+                       "event_id"])
+
     def one(eid):
-        return parse_box(espn.summary(cfg["sport"], cfg["league"], eid), eid)
+        summ = espn.summary(cfg["sport"], cfg["league"], eid,
+                            max_age_h=1.0 if eid in recent else None)
+        return parse_box(summ, eid)
     with ThreadPoolExecutor(workers) as ex:
         rows = [r for part in ex.map(one, g["event_id"]) for r in part]
     df = pd.DataFrame(rows)
