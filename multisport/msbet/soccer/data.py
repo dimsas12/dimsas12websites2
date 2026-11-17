@@ -61,8 +61,15 @@ def download(leagues=None, seasons=None, refresh_last: int = 1) -> None:
             f = RAW / f"{lg}_{s}.csv"
             if f.exists() and f.stat().st_size > 500 and i < len(seasons) - refresh_last:
                 continue
-            r = requests.get(f"{BASE}/{s}/{lg}.csv", headers={"User-Agent": "Mozilla/5.0"},
-                             timeout=40)
+            try:
+                r = requests.get(f"{BASE}/{s}/{lg}.csv", headers={"User-Agent": "Mozilla/5.0"},
+                                 timeout=20)
+            except requests.RequestException:  # site slow or down: keep the cached file
+                if f.exists():
+                    continue
+                if i < len(seasons) - refresh_last:
+                    continue
+                raise
             if r.ok and len(r.content) > 500:
                 f.write_bytes(r.content)
 
