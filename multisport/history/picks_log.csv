@@ -218,29 +218,62 @@ day,sport,date,game,pick,book,odds,model_p,edge,event_id,player_id,market,select
 2026-11-22,NBA props,2026-11-22 03:00:00,Boston Celtics @ Sacramento Kings,Derrick White points Under 14.5,DraftKings line,1.86,0.6549782887769404,0.21825961712510922,,3078576,pts,under,14.5,,,V,did not play,0
 2026-11-22,NBA props,2026-11-22 00:30:00,Portland Trail Blazers @ New York Knicks,Donovan Clingan points Under 10.5,DraftKings line,1.81,0.6662146064028174,0.20584843758909943,,5105565,pts,under,10.5,,,L,22 pts,-1.000
 2026-11-22,NBA props,2026-11-22 01:00:00,LA Clippers @ Dallas Mavericks,Rui Hachimura points Under 14.5,DraftKings line,1.79,0.6627760278402182,0.18636908983399048,,4066648,pts,under,14.5,,,L,19 pts,-1.000
-2026-11-22,Football,2026-11-22 20:00:00,Getafe - Atlético Madrid,Atlético Madrid to win,unibet_se,1.62,0.6305915455348197,0.021558303766407994,,,h2h,Atlético Madrid,,Getafe,Atlético Madrid,,,
-2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Baylor Scheierman points Under 7.5,DraftKings line,1.79,0.8158653878448393,0.4603990442422623,,4593841,pts,under,7.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:00:00,Indiana Pacers @ New York Knicks,Josh Hart points Under 9.5,DraftKings line,1.87,0.7612051752424015,0.4234536777032909,,3062679,pts,under,9.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,De'Anthony Melton points Under 10.5,DraftKings line,1.81,0.7723185438008142,0.39789656427947384,,4066436,pts,under,10.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:00:00,Indiana Pacers @ New York Knicks,Mikal Bridges points Under 11.5,DraftKings line,1.78,0.764050850179594,0.36001051331967715,,3147657,pts,under,11.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Ace Bailey points Under 14.5,DraftKings line,1.83,0.7387181848147198,0.3518542782109373,,4873138,pts,under,14.5,,,,,
-2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Bam Adebayo points Under 19.5,DraftKings line,1.86,0.7267056520784676,0.3516725128659499,,4066261,pts,under,19.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Jayson Tatum points Under 28.5,DraftKings line,1.83,0.7355638979556742,0.3460819332588838,,4065648,pts,under,28.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Naji Marshall points Under 12.5,DraftKings line,1.8,0.7476584011210419,0.34578512201787537,,4278594,pts,under,12.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Darryn Peterson points Under 18.5,DraftKings line,1.86,0.7165394317390519,0.3327633430346366,,5041955,pts,under,18.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,Trae Young points Under 17.5,DraftKings line,1.84,0.7240184418025037,0.33219393291660704,,4277905,pts,under,17.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Derrick White points Under 14.5,DraftKings line,1.85,0.7187795265086514,0.3297421240410052,,3078576,pts,under,14.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Draymond Green points Under 4.5,DraftKings line,1.85,0.7118471085043698,0.31691715073308435,,6589,pts,under,4.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Payton Pritchard points Under 15.5,DraftKings line,1.88,0.6980179868010529,0.3122738151859794,,4066354,pts,under,15.5,,,,,
-2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Bobby Portis points Under 8.5,DraftKings line,1.8,0.7287331441010276,0.31171965938184987,,3064482,pts,under,8.5,,,,,
-2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Ajay Mitchell points Under 20.5,DraftKings line,1.88,0.6932790954734726,0.30336469949012823,,4900671,pts,under,20.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Keyonte George points Under 23.5,DraftKings line,1.84,0.6873896839048296,0.26479701838488645,,4433627,pts,under,23.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,AJ Dybantsa points Under 17.5,DraftKings line,1.84,0.681799852660566,0.2545117288954415,,5142718,pts,under,17.5,,,,,
-2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Klay Thompson points Under 14.5,DraftKings line,1.88,0.6629176462119316,0.24628517487843138,,6475,pts,under,14.5,,,,,
-2026-11-23,NBA props,2026-11-23 01:00:00,Indiana Pacers @ New York Knicks,Kelly Oubre Jr. points Under 12.5,DraftKings line,1.86,0.6687887759735114,0.24394712331073132,,3133603,pts,under,12.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,Jalen Suggs points Under 11.5,DraftKings line,1.84,0.6717921383668047,0.23609753459492078,,4432165,pts,under,11.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Denver Nuggets @ Chicago Bulls,DeMar DeRozan points Under 11.5,DraftKings line,1.84,0.6616849627144346,0.2175003313945596,,3978,pts,under,11.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Denver Nuggets @ Chicago Bulls,Buddy Hield points Under 11.5,DraftKings line,1.78,0.6715449058562959,0.19534993242420673,,2990984,pts,under,11.5,,,,,
-2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Giannis Antetokounmpo points Under 26.5,DraftKings line,1.81,0.6581996179701723,0.19134130852601205,,3032977,pts,under,26.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Kyrie Irving points Under 23.5,DraftKings line,1.8,0.6613778108338116,0.1904800595008609,,6442,pts,under,23.5,,,,,
-2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,Anthony Davis points Under 24.5,DraftKings line,1.8,0.654731030732336,0.17851585531820469,,6583,pts,under,24.5,,,,,
+2026-11-22,Football,2026-11-22 20:00:00,Getafe - Atlético Madrid,Atlético Madrid to win,unibet_se,1.62,0.6305915455348197,0.021558303766407994,,,h2h,Atlético Madrid,,Getafe,Atlético Madrid,W,0-3,0.620
+2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Baylor Scheierman points Under 7.5,DraftKings line,1.79,0.8158653878448393,0.4603990442422623,,4593841,pts,under,7.5,,,W,3 pts,0.790
+2026-11-23,NBA props,2026-11-23 01:00:00,Indiana Pacers @ New York Knicks,Josh Hart points Under 9.5,DraftKings line,1.87,0.7612051752424015,0.4234536777032909,,3062679,pts,under,9.5,,,L,10 pts,-1.000
+2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,De'Anthony Melton points Under 10.5,DraftKings line,1.81,0.7723185438008142,0.39789656427947384,,4066436,pts,under,10.5,,,W,2 pts,0.810
+2026-11-23,NBA props,2026-11-23 01:00:00,Indiana Pacers @ New York Knicks,Mikal Bridges points Under 11.5,DraftKings line,1.78,0.764050850179594,0.36001051331967715,,3147657,pts,under,11.5,,,W,8 pts,0.780
+2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Ace Bailey points Under 14.5,DraftKings line,1.83,0.7387181848147198,0.3518542782109373,,4873138,pts,under,14.5,,,L,16 pts,-1.000
+2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Bam Adebayo points Under 19.5,DraftKings line,1.86,0.7267056520784676,0.3516725128659499,,4066261,pts,under,19.5,,,L,24 pts,-1.000
+2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Jayson Tatum points Under 28.5,DraftKings line,1.83,0.7355638979556742,0.3460819332588838,,4065648,pts,under,28.5,,,W,27 pts,0.830
+2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Naji Marshall points Under 12.5,DraftKings line,1.8,0.7476584011210419,0.34578512201787537,,4278594,pts,under,12.5,,,W,6 pts,0.800
+2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Darryn Peterson points Under 18.5,DraftKings line,1.86,0.7165394317390519,0.3327633430346366,,5041955,pts,under,18.5,,,W,6 pts,0.860
+2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,Trae Young points Under 17.5,DraftKings line,1.84,0.7240184418025037,0.33219393291660704,,4277905,pts,under,17.5,,,W,11 pts,0.840
+2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Derrick White points Under 14.5,DraftKings line,1.85,0.7187795265086514,0.3297421240410052,,3078576,pts,under,14.5,,,W,14 pts,0.850
+2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Draymond Green points Under 4.5,DraftKings line,1.85,0.7118471085043698,0.31691715073308435,,6589,pts,under,4.5,,,L,9 pts,-1.000
+2026-11-23,NBA props,2026-11-23 01:30:00,Boston Celtics @ Golden State Warriors,Payton Pritchard points Under 15.5,DraftKings line,1.88,0.6980179868010529,0.3122738151859794,,4066354,pts,under,15.5,,,W,5 pts,0.880
+2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Bobby Portis points Under 8.5,DraftKings line,1.8,0.7287331441010276,0.31171965938184987,,3064482,pts,under,8.5,,,L,10 pts,-1.000
+2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Ajay Mitchell points Under 20.5,DraftKings line,1.88,0.6932790954734726,0.30336469949012823,,4900671,pts,under,20.5,,,W,17 pts,0.880
+2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Keyonte George points Under 23.5,DraftKings line,1.84,0.6873896839048296,0.26479701838488645,,4433627,pts,under,23.5,,,W,15 pts,0.840
+2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,AJ Dybantsa points Under 17.5,DraftKings line,1.84,0.681799852660566,0.2545117288954415,,5142718,pts,under,17.5,,,W,16 pts,0.840
+2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Klay Thompson points Under 14.5,DraftKings line,1.88,0.6629176462119316,0.24628517487843138,,6475,pts,under,14.5,,,W,9 pts,0.880
+2026-11-23,NBA props,2026-11-23 01:00:00,Indiana Pacers @ New York Knicks,Kelly Oubre Jr. points Under 12.5,DraftKings line,1.86,0.6687887759735114,0.24394712331073132,,3133603,pts,under,12.5,,,L,15 pts,-1.000
+2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,Jalen Suggs points Under 11.5,DraftKings line,1.84,0.6717921383668047,0.23609753459492078,,4432165,pts,under,11.5,,,W,9 pts,0.840
+2026-11-23,NBA props,2026-11-23 00:00:00,Denver Nuggets @ Chicago Bulls,DeMar DeRozan points Under 11.5,DraftKings line,1.84,0.6616849627144346,0.2175003313945596,,3978,pts,under,11.5,,,W,4 pts,0.840
+2026-11-23,NBA props,2026-11-23 00:00:00,Denver Nuggets @ Chicago Bulls,Buddy Hield points Under 11.5,DraftKings line,1.78,0.6715449058562959,0.19534993242420673,,2990984,pts,under,11.5,,,L,33 pts,-1.000
+2026-11-23,NBA props,2026-11-22 23:00:00,Oklahoma City Thunder @ Miami Heat,Giannis Antetokounmpo points Under 26.5,DraftKings line,1.81,0.6581996179701723,0.19134130852601205,,3032977,pts,under,26.5,,,V,did not play,0
+2026-11-23,NBA props,2026-11-23 00:00:00,Dallas Mavericks @ Utah Jazz,Kyrie Irving points Under 23.5,DraftKings line,1.8,0.6613778108338116,0.1904800595008609,,6442,pts,under,23.5,,,W,16 pts,0.800
+2026-11-23,NBA props,2026-11-23 00:00:00,Orlando Magic @ Washington Wizards,Anthony Davis points Under 24.5,DraftKings line,1.8,0.654731030732336,0.17851585531820469,,6583,pts,under,24.5,,,W,22 pts,0.800
+2026-11-24,NBA props,2026-11-24 03:00:00,San Antonio Spurs @ Sacramento Kings,Keegan Murray points Under 12.5,DraftKings line,1.86,0.7565973639281404,0.4072710969063411,,4594327,pts,under,12.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Brooklyn Nets @ Minnesota Timberwolves,Mikel Brown Jr. points Under 13.5,DraftKings line,1.88,0.7324715883626758,0.3770465861218304,,5101761,pts,under,13.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,Utah Jazz @ Los Angeles Lakers,Darryn Peterson points Under 18.5,DraftKings line,1.86,0.7401153461323092,0.37661454380609527,,5041955,pts,under,18.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,San Antonio Spurs @ Sacramento Kings,Domantas Sabonis points Under 14.5,DraftKings line,1.8,0.7537877971683729,0.3568180349030712,,3155942,pts,under,14.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:00:00,Portland Trail Blazers @ Philadelphia 76ers,Tyrese Maxey points Under 25.5,DraftKings line,1.86,0.7223485204911175,0.34356824811347875,,4431678,pts,under,25.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Brooklyn Nets @ Minnesota Timberwolves,Rudy Gobert points Under 9.5,DraftKings line,1.81,0.7395973032688847,0.33867111891668134,,3032976,pts,under,9.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,Utah Jazz @ Los Angeles Lakers,Quentin Grimes points Under 16.5,DraftKings line,1.86,0.7164138855639879,0.3325298271490176,,4397014,pts,under,16.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Cleveland Cavaliers @ Chicago Bulls,Peyton Watson points Under 12.5,DraftKings line,1.86,0.703227272566612,0.3080027269738983,,4576087,pts,under,12.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Cleveland Cavaliers @ Chicago Bulls,Josh Giddey points Under 13.5,DraftKings line,1.84,0.7010223483858281,0.2898811210299237,,4871145,pts,under,13.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Cleveland Cavaliers @ Chicago Bulls,Jarrett Allen points Under 14.5,DraftKings line,1.8,0.7164998588231819,0.2896997458817274,,4066328,pts,under,14.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Phoenix Suns @ New Orleans Pelicans,Zion Williamson points Under 22.5,DraftKings line,1.81,0.7060613849365842,0.2779711067352175,,4395628,pts,under,22.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,Utah Jazz @ Los Angeles Lakers,Keyonte George points Under 22.5,DraftKings line,1.86,0.6811311597484281,0.2669039571320764,,4433627,pts,under,22.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Phoenix Suns @ New Orleans Pelicans,Oso Ighodaro points Under 7.5,DraftKings line,1.86,0.6810782814954988,0.26680560358162775,,4601023,pts,under,7.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Oklahoma City Thunder @ Indiana Pacers,Aaron Nesmith points Under 12.5,DraftKings line,1.88,0.6737150839572281,0.2665843578395888,,4396909,pts,under,12.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Milwaukee Bucks @ Toronto Raptors,Tyler Herro points Under 20.5,DraftKings line,1.87,0.6685265451855738,0.25014463949702304,,4395725,pts,under,20.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,San Antonio Spurs @ Sacramento Kings,Darius Acuff Jr. points Under 23.5,DraftKings line,1.81,0.68899746040038,0.24708540332468787,,5142620,pts,under,23.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:30:00,LA Clippers @ Houston Rockets,Max Strus points Under 9.5,DraftKings line,1.81,0.6866449023471678,0.24282727324837383,,4065778,pts,under,9.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Milwaukee Bucks @ Toronto Raptors,Collin Murray-Boyles points Under 12.5,DraftKings line,1.83,0.6757917762679183,0.23669895057029056,,5093267,pts,under,12.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,Utah Jazz @ Los Angeles Lakers,Ace Bailey points Under 14.5,DraftKings line,1.8,0.6860981640943327,0.23497669536979893,,4873138,pts,under,14.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Cleveland Cavaliers @ Chicago Bulls,Donovan Mitchell points Under 26.5,DraftKings line,1.84,0.6679150614387599,0.22896371304731833,,3908809,pts,under,26.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Oklahoma City Thunder @ Indiana Pacers,Kelly Oubre Jr. points Under 12.5,DraftKings line,1.84,0.6634349943822608,0.22072038966336005,,3133603,pts,under,12.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:30:00,LA Clippers @ Houston Rockets,Jabari Smith Jr. points Under 14.5,DraftKings line,1.87,0.6504756096126462,0.21638938997564838,,4432639,pts,under,14.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Phoenix Suns @ New Orleans Pelicans,Devin Booker points Under 26.5,DraftKings line,1.84,0.658371242481173,0.2114030861653582,,3136193,pts,under,26.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:30:00,LA Clippers @ Houston Rockets,Kevin Durant points Under 21.5,DraftKings line,1.8,0.6700519031187409,0.20609342561373367,,3202,pts,under,21.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Milwaukee Bucks @ Toronto Raptors,Jakob Poeltl points Under 10.5,DraftKings line,1.82,0.6622702831198655,0.2053319152781552,,3134908,pts,under,10.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:00:00,Cleveland Cavaliers @ Chicago Bulls,Isaac Okoro points Under 10.5,DraftKings line,1.84,0.6515354610913221,0.19882524840803262,,4432822,pts,under,10.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:00:00,Portland Trail Blazers @ Philadelphia 76ers,Joel Embiid points Under 21.5,DraftKings line,1.8,0.6634161134901215,0.1941490042822187,,3059318,pts,under,21.5,,,,,
+2026-11-24,NBA props,2026-11-24 03:00:00,San Antonio Spurs @ Sacramento Kings,De'Aaron Fox points Under 15.5,DraftKings line,1.8,0.6633178408956077,0.193972113612094,,4066259,pts,under,15.5,,,,,
+2026-11-24,NBA props,2026-11-24 01:30:00,LA Clippers @ Houston Rockets,Amen Thompson points Under 15.5,DraftKings line,1.83,0.6523801732188335,0.19385571699046533,,4684740,pts,under,15.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Brooklyn Nets @ Minnesota Timberwolves,Julius Randle points Under 20.5,DraftKings line,1.8,0.6631321593859723,0.19363788689475014,,3064514,pts,under,20.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Milwaukee Bucks @ Toronto Raptors,Jaime Jaquez Jr. points Under 12.5,DraftKings line,1.81,0.6531016537817924,0.1821139933450444,,4432848,pts,under,12.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Oklahoma City Thunder @ Indiana Pacers,Shai Gilgeous-Alexander points Under 32.5,DraftKings line,1.81,0.6525126259025396,0.1810478528835966,,4278073,pts,under,32.5,,,,,
+2026-11-24,NBA props,2026-11-24 00:30:00,Milwaukee Bucks @ Toronto Raptors,Myles Turner points Under 7.5,DraftKings line,1.78,0.656241440148751,0.1681097634647768,,3133628,pts,under,7.5,,,,,
